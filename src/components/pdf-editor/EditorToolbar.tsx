@@ -91,10 +91,10 @@ function ToolButton({
             isActive && "toolbar-btn-active"
           )}
         >
-          <tool.icon className="w-5 h-5" />
+          <tool.icon className="w-3.5 h-3.5" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">
+      <TooltipContent side="bottom" className="text-xs">
         <p>{tool.label}</p>
       </TooltipContent>
     </Tooltip>
@@ -110,9 +110,9 @@ export function EditorToolbar({
   canRedo
 }: EditorToolbarProps) {
   return (
-    <div className="h-14 bg-toolbar border-b border-border px-4 flex items-center gap-2">
+    <div className="h-10 bg-toolbar border-b border-border px-2 flex items-center gap-1">
       {/* History */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <Tooltip>
           <TooltipTrigger asChild>
             <button 
@@ -120,10 +120,10 @@ export function EditorToolbar({
               disabled={!canUndo}
               className="toolbar-btn disabled:opacity-40"
             >
-              <Undo className="w-5 h-5" />
+              <Undo className="w-3.5 h-3.5" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Undo</TooltipContent>
+          <TooltipContent side="bottom" className="text-xs">Undo</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -132,17 +132,17 @@ export function EditorToolbar({
               disabled={!canRedo}
               className="toolbar-btn disabled:opacity-40"
             >
-              <Redo className="w-5 h-5" />
+              <Redo className="w-3.5 h-3.5" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Redo</TooltipContent>
+          <TooltipContent side="bottom" className="text-xs">Redo</TooltipContent>
         </Tooltip>
       </div>
       
-      <Separator orientation="vertical" className="h-8 mx-2" />
+      <Separator orientation="vertical" className="h-5 mx-1" />
       
       {/* Primary Tools */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         {tools.map((tool) => (
           <ToolButton
             key={tool.id}
@@ -153,10 +153,10 @@ export function EditorToolbar({
         ))}
       </div>
       
-      <Separator orientation="vertical" className="h-8 mx-2" />
+      <Separator orientation="vertical" className="h-5 mx-1" />
       
       {/* Format Tools */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         {formatTools.map((tool) => (
           <ToolButton
             key={tool.id}
@@ -167,10 +167,10 @@ export function EditorToolbar({
         ))}
       </div>
       
-      <Separator orientation="vertical" className="h-8 mx-2" />
+      <Separator orientation="vertical" className="h-5 mx-1" />
       
       {/* Align Tools */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         {alignTools.map((tool) => (
           <ToolButton
             key={tool.id}
@@ -181,10 +181,10 @@ export function EditorToolbar({
         ))}
       </div>
       
-      <Separator orientation="vertical" className="h-8 mx-2" />
+      <Separator orientation="vertical" className="h-5 mx-1" />
       
       {/* Action Tools */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         {actionTools.map((tool) => (
           <ToolButton
             key={tool.id}

@@ -28,34 +28,34 @@ export function PDFCanvas({ pdfUrl, currentPage, zoom, onFileUpload }: PDFCanvas
 
   if (!pdfUrl) {
     return (
-      <div className="flex-1 bg-canvas flex items-center justify-center p-8">
+      <div className="flex-1 bg-canvas flex items-center justify-center p-4">
         <div
           {...getRootProps()}
           className={cn(
-            "drop-zone max-w-xl w-full flex flex-col items-center justify-center text-center cursor-pointer",
+            "drop-zone max-w-sm w-full flex flex-col items-center justify-center text-center cursor-pointer",
             isDragActive && "drop-zone-active"
           )}
         >
           <input {...getInputProps()} />
           
-          <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center mb-6">
+          <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center mb-3">
             <FileText className={cn(
-              "w-10 h-10 text-primary transition-transform duration-200",
+              "w-6 h-6 text-primary transition-transform duration-200",
               isDragActive && "scale-110"
             )} />
           </div>
           
-          <h3 className="text-xl font-semibold text-foreground mb-2">
+          <h3 className="text-sm font-semibold text-foreground mb-1">
             {isDragActive ? "Drop your PDF here" : "No Document Loaded"}
           </h3>
           
-          <p className="text-muted-foreground mb-6">
-            To get started, please open a file from your computer or simply drag and drop a PDF here.
+          <p className="text-xs text-muted-foreground mb-3">
+            Open a file or drag and drop a PDF here
           </p>
           
-          <Button className="gap-2">
-            <FileUp className="w-4 h-4" />
-            Open a File
+          <Button size="sm" className="gap-1.5 text-xs h-7">
+            <FileUp className="w-3 h-3" />
+            Open File
           </Button>
         </div>
       </div>
@@ -63,16 +63,15 @@ export function PDFCanvas({ pdfUrl, currentPage, zoom, onFileUpload }: PDFCanvas
   }
 
   return (
-    <div className="flex-1 bg-canvas overflow-auto p-8">
+    <div className="flex-1 bg-canvas overflow-auto p-4">
       <div 
-        className="mx-auto bg-card shadow-soft-lg rounded-lg overflow-hidden"
+        className="mx-auto bg-card shadow-soft-lg rounded-md overflow-hidden"
         style={{ 
           width: `${595 * (zoom / 100)}px`,
           minHeight: `${842 * (zoom / 100)}px`
         }}
       >
-        {/* PDF content would render here */}
-        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
           <p>PDF Preview - Page {currentPage}</p>
         </div>
       </div>
