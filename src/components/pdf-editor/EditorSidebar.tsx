@@ -28,7 +28,7 @@ const mainItems: SidebarItem[] = [
 
 const bottomItems: SidebarItem[] = [
   { id: "settings", label: "Settings", icon: Settings },
-  { id: "help", label: "Help & Support", icon: HelpCircle },
+  { id: "help", label: "Help", icon: HelpCircle },
 ];
 
 interface EditorSidebarProps {
@@ -38,8 +38,8 @@ interface EditorSidebarProps {
 
 export function EditorSidebar({ activeItem, onItemClick }: EditorSidebarProps) {
   return (
-    <aside className="w-[280px] bg-sidebar h-full flex flex-col border-r border-border">
-      <nav className="flex-1 p-4 space-y-1">
+    <aside className="w-[200px] bg-sidebar h-full flex flex-col border-r border-border">
+      <nav className="flex-1 p-2 space-y-0.5">
         {mainItems.map((item) => (
           <button
             key={item.id}
@@ -49,13 +49,13 @@ export function EditorSidebar({ activeItem, onItemClick }: EditorSidebarProps) {
               activeItem === item.id && "sidebar-item-active"
             )}
           >
-            <item.icon className="w-5 h-5" />
+            <item.icon className="w-3.5 h-3.5" />
             <span className="font-medium">{item.label}</span>
           </button>
         ))}
       </nav>
       
-      <div className="p-4 border-t border-border space-y-1">
+      <div className="p-2 border-t border-border space-y-0.5">
         {bottomItems.map((item) => (
           <button
             key={item.id}
@@ -65,7 +65,7 @@ export function EditorSidebar({ activeItem, onItemClick }: EditorSidebarProps) {
               activeItem === item.id && "sidebar-item-active"
             )}
           >
-            <item.icon className="w-5 h-5" />
+            <item.icon className="w-3.5 h-3.5" />
             <span className="font-medium">{item.label}</span>
           </button>
         ))}

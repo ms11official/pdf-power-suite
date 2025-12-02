@@ -44,10 +44,10 @@
     --drop-zone-border: 160 84% 39%;
     --drop-zone-bg: 160 84% 97%;
     
-    --sidebar-width: 280px;
-    --thumbnail-width: 200px;
-    --header-height: 64px;
-    --toolbar-height: 56px;
+    --sidebar-width: 200px;
+    --thumbnail-width: 140px;
+    --header-height: 44px;
+    --toolbar-height: 40px;
   }
 
   .dark {
@@ -99,7 +99,7 @@
 
 @layer utilities {
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200 cursor-pointer;
+    @apply flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200 cursor-pointer;
   }
   
   .sidebar-item-active {
@@ -107,7 +107,7 @@
   }
   
   .toolbar-btn {
-    @apply p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-150;
+    @apply p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-150;
   }
   
   .toolbar-btn-active {
@@ -115,7 +115,7 @@
   }
   
   .drop-zone {
-    @apply border-2 border-dashed border-border rounded-2xl p-12 transition-all duration-200;
+    @apply border-2 border-dashed border-border rounded-xl p-6 transition-all duration-200;
   }
   
   .drop-zone-active {
@@ -123,7 +123,7 @@
   }
   
   .thumbnail-card {
-    @apply bg-card rounded-lg shadow-sm border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all duration-150;
+    @apply bg-card rounded-md shadow-sm border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all duration-150;
   }
   
   .thumbnail-card-active {
@@ -131,7 +131,7 @@
   }
   
   .glass-panel {
-    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl shadow-lg;
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg;
   }
 }
 

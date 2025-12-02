@@ -20,7 +20,6 @@ import {
   Droplets,
   Hash
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface ToolItem {
   id: string;
@@ -58,16 +57,16 @@ const toolsByCategory: Record<string, ToolItem[]> = {
   convert: [
     { id: "to-word", label: "PDF to Word", description: "Convert to .docx", icon: FileText },
     { id: "to-excel", label: "PDF to Excel", description: "Convert to .xlsx", icon: FileSpreadsheet },
-    { id: "to-ppt", label: "PDF to PowerPoint", description: "Convert to .pptx", icon: Presentation },
+    { id: "to-ppt", label: "PDF to PPT", description: "Convert to .pptx", icon: Presentation },
     { id: "to-image", label: "PDF to Image", description: "Convert to JPG/PNG", icon: Image },
-    { id: "from-image", label: "Image to PDF", description: "Create PDF from images", icon: ArrowRightLeft },
-    { id: "ocr", label: "OCR", description: "Extract text from images", icon: ScanText },
+    { id: "from-image", label: "Image to PDF", description: "Create from images", icon: ArrowRightLeft },
+    { id: "ocr", label: "OCR", description: "Extract text", icon: ScanText },
   ],
   advanced: [
     { id: "compress", label: "Compress", description: "Reduce file size", icon: Minimize2 },
     { id: "repair", label: "Repair", description: "Fix corrupted PDF", icon: Wrench },
     { id: "watermark", label: "Watermark", description: "Add/remove watermark", icon: Droplets },
-    { id: "page-numbers", label: "Page Numbers", description: "Add page numbering", icon: Hash },
+    { id: "page-numbers", label: "Page Numbers", description: "Add numbering", icon: Hash },
   ],
 };
 
@@ -82,20 +81,20 @@ export function ToolPanel({ activeCategory, onToolClick }: ToolPanelProps) {
   if (tools.length === 0) return null;
 
   return (
-    <div className="bg-accent/50 border-b border-border px-6 py-4 animate-fade-in">
-      <div className="flex flex-wrap gap-3">
+    <div className="bg-accent/50 border-b border-border px-3 py-2 animate-fade-in">
+      <div className="flex flex-wrap gap-1.5">
         {tools.map((tool) => (
           <button
             key={tool.id}
             onClick={() => onToolClick(tool.id)}
-            className="flex items-center gap-3 px-4 py-3 bg-card rounded-xl hover:bg-accent hover:shadow-soft transition-all duration-200 group"
+            className="flex items-center gap-2 px-2.5 py-1.5 bg-card rounded-lg hover:bg-accent hover:shadow-soft transition-all duration-200 group"
           >
-            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-              <tool.icon className="w-5 h-5 text-primary" />
+            <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+              <tool.icon className="w-3.5 h-3.5 text-primary" />
             </div>
             <div className="text-left">
-              <p className="font-medium text-sm text-foreground">{tool.label}</p>
-              <p className="text-xs text-muted-foreground">{tool.description}</p>
+              <p className="font-medium text-xs text-foreground">{tool.label}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">{tool.description}</p>
             </div>
           </button>
         ))}
