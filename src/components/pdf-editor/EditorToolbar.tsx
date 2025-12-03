@@ -17,7 +17,8 @@ import {
   Link,
   Trash2,
   Undo,
-  Redo
+  Redo,
+  Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -68,6 +69,7 @@ interface EditorToolbarProps {
   onToolClick: (id: string) => void;
   onUndo: () => void;
   onRedo: () => void;
+  onDownload: () => void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -106,11 +108,12 @@ export function EditorToolbar({
   onToolClick,
   onUndo,
   onRedo,
+  onDownload,
   canUndo,
   canRedo
 }: EditorToolbarProps) {
   return (
-    <div className="h-10 bg-toolbar border-b border-border px-2 flex items-center gap-1">
+    <div className="h-10 bg-toolbar border-b border-border px-2 flex items-center justify-between gap-1">
       {/* History */}
       <div className="flex items-center gap-0.5">
         <Tooltip>
@@ -194,6 +197,15 @@ export function EditorToolbar({
           />
         ))}
       </div>
+
+      {/* Download Button */}
+      <button
+        onClick={onDownload}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
+      >
+        <Download className="w-3.5 h-3.5" />
+        <span>Download</span>
+      </button>
     </div>
   );
 }

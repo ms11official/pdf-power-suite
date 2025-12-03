@@ -5,15 +5,16 @@ import {
   FolderOpen, 
   Save, 
   Printer,
-  Download
+  Undo,
+  Redo
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { 
   Tooltip, 
   TooltipContent, 
   TooltipTrigger 
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface ZoomControlsProps {
   zoom: number;
@@ -23,7 +24,14 @@ interface ZoomControlsProps {
   onOpenFile: () => void;
   onSave: () => void;
   onPrint: () => void;
-  onDownload: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  selectedTool: string;
+  fileName: string | null;
+  currentPage: number;
+  totalPages: number;
 }
 
 export function ZoomControls({ 
@@ -34,7 +42,14 @@ export function ZoomControls({
   onOpenFile,
   onSave,
   onPrint,
-  onDownload
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+  selectedTool,
+  fileName,
+  currentPage,
+  totalPages
 }: ZoomControlsProps) {
   return (
     <div className="h-9 bg-toolbar border-t border-border px-2 flex items-center justify-between">
@@ -70,6 +85,34 @@ export function ZoomControls({
       <div className="flex items-center gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
+            <button 
+              onClick={onUndo} 
+              disabled={!canUndo}
+              className={cn("toolbar-btn", !canUndo && "opacity-40 cursor-not-allowed")}
+            >
+              <Undo className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="text-xs">Undo</TooltipContent>
+        </Tooltip>
+        
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button 
+              onClick={onRedo} 
+              disabled={!canRedo}
+              className={cn("toolbar-btn", !canRedo && "opacity-40 cursor-not-allowed")}
+            >
+              <Redo className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="text-xs">Redo</TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="h-4 mx-1" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
             <button onClick={onZoomOut} className="toolbar-btn">
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
@@ -100,18 +143,25 @@ export function ZoomControls({
           </TooltipTrigger>
           <TooltipContent className="text-xs">Fit to Page</TooltipContent>
         </Tooltip>
+
+        <Separator orientation="vertical" className="h-4 mx-1" />
+
+        {/* Selected Tool indicator */}
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded-md">
+          <span className="text-xs font-medium text-primary capitalize">{selectedTool}</span>
+        </div>
       </div>
       
-      <div className="flex items-center gap-0.5">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button onClick={onDownload} size="sm" className="gap-1 text-xs h-6 px-2">
-              <Download className="w-3 h-3" />
-              Download
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent className="text-xs">Download PDF</TooltipContent>
-        </Tooltip>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {fileName && (
+          <>
+            <span className="truncate max-w-[120px]">{fileName}</span>
+            <span>/</span>
+          </>
+        )}
+        <span className="font-medium text-foreground">
+          Page {currentPage} of {totalPages || 0}
+        </span>
       </div>
     </div>
   );

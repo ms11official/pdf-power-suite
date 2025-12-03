@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef } from "react";
-import { EditorHeader } from "./EditorHeader";
 import { EditorSidebar } from "./EditorSidebar";
 import { EditorToolbar } from "./EditorToolbar";
 import { PDFCanvas } from "./PDFCanvas";
@@ -18,6 +17,8 @@ export function PDFEditor() {
   const [zoom, setZoom] = useState(100);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [thumbnailsCollapsed, setThumbnailsCollapsed] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -30,9 +31,12 @@ export function PDFEditor() {
     const url = URL.createObjectURL(file);
     setPdfUrl(url);
     setFileName(file.name);
-    setTotalPages(5); // Simulated - would come from PDF.js
     setCurrentPage(1);
     toast.success(`Loaded: ${file.name}`);
+  }, []);
+
+  const handlePdfLoaded = useCallback((numPages: number) => {
+    setTotalPages(numPages);
   }, []);
 
   const handleOpenFile = useCallback(() => {
@@ -88,8 +92,12 @@ export function PDFEditor() {
     toast.info(`Tool: ${toolId}`);
   }, []);
 
+  const handleAddPage = useCallback(() => {
+    toast.info("Add page feature coming soon");
+  }, []);
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
       <input
         ref={fileInputRef}
         type="file"
@@ -101,16 +109,12 @@ export function PDFEditor() {
         }}
       />
       
-      <EditorHeader 
-        fileName={fileName} 
-        currentPage={currentPage} 
-        totalPages={totalPages} 
-      />
-      
       <div className="flex-1 flex overflow-hidden">
         <EditorSidebar 
           activeItem={activeCategory} 
-          onItemClick={setActiveCategory} 
+          onItemClick={setActiveCategory}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
         
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -119,6 +123,7 @@ export function PDFEditor() {
             onToolClick={handleToolClick}
             onUndo={handleUndo}
             onRedo={handleRedo}
+            onDownload={handleDownload}
             canUndo={canUndo}
             canRedo={canRedo}
           />
@@ -134,12 +139,17 @@ export function PDFEditor() {
               currentPage={currentPage}
               zoom={zoom}
               onFileUpload={handleFileUpload}
+              onPdfLoaded={handlePdfLoaded}
             />
             
             <PageThumbnails
               totalPages={totalPages}
               currentPage={currentPage}
               onPageClick={setCurrentPage}
+              onAddPage={handleAddPage}
+              pdfUrl={pdfUrl}
+              collapsed={thumbnailsCollapsed}
+              onToggleCollapse={() => setThumbnailsCollapsed(!thumbnailsCollapsed)}
             />
           </div>
           
@@ -151,7 +161,14 @@ export function PDFEditor() {
             onOpenFile={handleOpenFile}
             onSave={handleSave}
             onPrint={handlePrint}
-            onDownload={handleDownload}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            selectedTool={activeTool}
+            fileName={fileName}
+            currentPage={currentPage}
+            totalPages={totalPages}
           />
         </div>
       </div>
