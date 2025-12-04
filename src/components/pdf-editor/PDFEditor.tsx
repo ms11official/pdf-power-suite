@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { EditorSidebar } from "./EditorSidebar";
 import { EditorToolbar } from "./EditorToolbar";
 import { PDFCanvas } from "./PDFCanvas";
@@ -20,6 +20,7 @@ export function PDFEditor() {
   const [canRedo, setCanRedo] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [thumbnailsCollapsed, setThumbnailsCollapsed] = useState(false);
+  const [blankPages, setBlankPages] = useState<number[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -35,6 +36,7 @@ export function PDFEditor() {
     setPdfUrl(url);
     setFileName(file.name);
     setCurrentPage(1);
+    setBlankPages([]);
     canvasOverlayRef.current?.clear();
     toast.success(`Loaded: ${file.name}`);
   }, []);
@@ -44,20 +46,66 @@ export function PDFEditor() {
   }, []);
 
   const handleOpenFile = useCallback(() => {
-    fileInputRef.current?.click();
+    setTimeout(() => fileInputRef.current?.click(), 0);
   }, []);
 
-  const handleZoomIn = useCallback(() => {
-    setZoom((prev) => Math.min(prev + 25, 400));
-  }, []);
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      
+      if (ctrl && e.key === "o") {
+        e.preventDefault();
+        handleOpenFile();
+      } else if (ctrl && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      } else if (ctrl && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((ctrl && e.key === "y") || (ctrl && e.shiftKey && e.key === "z")) {
+        e.preventDefault();
+        handleRedo();
+      } else if (ctrl && e.key === "p") {
+        e.preventDefault();
+        handlePrint();
+      } else if (ctrl && e.key === "d") {
+        e.preventDefault();
+        handleDownload();
+      } else if (e.key === "+" || (ctrl && e.key === "=")) {
+        e.preventDefault();
+        handleZoomIn();
+      } else if (e.key === "-" || (ctrl && e.key === "-")) {
+        e.preventDefault();
+        handleZoomOut();
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+          canvasOverlayRef.current?.deleteSelected();
+        }
+      } else if (e.key === "t" && !ctrl) {
+        if (document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+          canvasOverlayRef.current?.addText();
+          toast.info("Text tool activated");
+        }
+      } else if (e.key === "h" && !ctrl) {
+        if (document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+          setActiveTool("highlight");
+          toast.info("Highlight mode");
+        }
+      } else if (e.key === "Escape") {
+        setActiveTool("select");
+      } else if (ctrl && e.key === "ArrowRight" && currentPage < totalPages) {
+        e.preventDefault();
+        setCurrentPage(prev => prev + 1);
+      } else if (ctrl && e.key === "ArrowLeft" && currentPage > 1) {
+        e.preventDefault();
+        setCurrentPage(prev => prev - 1);
+      }
+    };
 
-  const handleZoomOut = useCallback(() => {
-    setZoom((prev) => Math.max(prev - 25, 25));
-  }, []);
-
-  const handleFitToPage = useCallback(() => {
-    setZoom(100);
-  }, []);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentPage, totalPages]);
 
   const handleSave = useCallback(() => {
     toast.success("Document saved");
@@ -78,6 +126,19 @@ export function PDFEditor() {
       toast.error("No document to download");
     }
   }, [pdfUrl, fileName]);
+
+  const handleZoomIn = useCallback(() => {
+    setZoom((prev) => Math.min(prev + 25, 400));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((prev) => Math.max(prev - 25, 25));
+  }, []);
+
+  const handleFitToPage = useCallback(() => {
+    setZoom(100);
+  }, []);
+
 
   const handleUndo = useCallback(() => {
     canvasOverlayRef.current?.undo();
@@ -322,9 +383,12 @@ export function PDFEditor() {
   }, [pdfUrl, totalPages, currentPage]);
 
   const handleAddPage = useCallback(() => {
-    setTotalPages(prev => prev + 1);
-    toast.success("New page added");
-  }, []);
+    const newPageNum = totalPages + 1;
+    setTotalPages(newPageNum);
+    setBlankPages(prev => [...prev, newPageNum]);
+    setCurrentPage(newPageNum);
+    toast.success(`Page ${newPageNum} added`);
+  }, [totalPages]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">

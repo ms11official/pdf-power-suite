@@ -34,15 +34,18 @@ export function PDFCanvas({
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  const renderingRef = useRef(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) onFileUpload(acceptedFiles[0]);
   }, [onFileUpload]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({ 
     onDrop, 
     accept: { 'application/pdf': ['.pdf'] }, 
-    multiple: false 
+    multiple: false,
+    noClick: !!pdfUrl,
+    noKeyboard: true
   });
 
   useEffect(() => {
@@ -58,8 +61,9 @@ export function PDFCanvas({
   }, [pdfUrl, onPdfLoaded]);
 
   useEffect(() => {
-    if (!pdfDoc || !pdfCanvasRef.current || isRendering) return;
+    if (!pdfDoc || !pdfCanvasRef.current || renderingRef.current) return;
     const renderPage = async () => {
+      renderingRef.current = true;
       setIsRendering(true);
       try {
         const page = await pdfDoc.getPage(currentPage);
@@ -71,10 +75,17 @@ export function PDFCanvas({
         setCanvasSize({ width: viewport.width, height: viewport.height });
         await page.render({ canvasContext: context, viewport }).promise;
       } catch (error) { console.error("Error rendering page:", error); }
-      finally { setIsRendering(false); }
+      finally { 
+        setIsRendering(false); 
+        renderingRef.current = false;
+      }
     };
     renderPage();
-  }, [pdfDoc, currentPage, zoom, isRendering]);
+  }, [pdfDoc, currentPage, zoom]);
+
+  const handleOpenFile = useCallback(() => {
+    open();
+  }, [open]);
 
   if (!pdfUrl) {
     return (
@@ -96,17 +107,19 @@ export function PDFCanvas({
           <p className="text-sm text-muted-foreground mb-4">
             To get started, please open a file or drag and drop a PDF here.
           </p>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={handleOpenFile} type="button">
             <FileUp className="w-4 h-4" />
             Open a File
           </Button>
+          <p className="text-xs text-muted-foreground mt-3">Shortcut: Ctrl+O</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-secondary overflow-auto p-4" ref={containerRef}>
+    <div className="flex-1 bg-secondary overflow-auto p-4" ref={containerRef} {...getRootProps()}>
+      <input {...getInputProps()} />
       <div className="flex justify-center">
         <div className="relative bg-card shadow-lg rounded-md overflow-hidden">
           <canvas ref={pdfCanvasRef} className="block" />

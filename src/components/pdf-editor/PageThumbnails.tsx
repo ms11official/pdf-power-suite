@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
@@ -14,14 +14,27 @@ interface PageThumbnailsProps {
 }
 
 export function PageThumbnails({ totalPages, currentPage, onPageClick, onAddPage, pdfUrl, collapsed, onToggleCollapse }: PageThumbnailsProps) {
-  const [thumbnails, setThumbnails] = useState<string[]>([]);
+  const [thumbnails, setThumbnails] = useState<Map<number, string>>(new Map());
+  const [pdfPageCount, setPdfPageCount] = useState(0);
+  const generatedRef = useRef(false);
 
   useEffect(() => {
-    if (!pdfUrl || totalPages === 0) { setThumbnails([]); return; }
+    if (!pdfUrl) { 
+      setThumbnails(new Map()); 
+      setPdfPageCount(0);
+      generatedRef.current = false;
+      return; 
+    }
+    
+    if (generatedRef.current) return;
+    generatedRef.current = true;
+    
     const generateThumbnails = async () => {
       try {
         const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-        const thumbs: string[] = [];
+        setPdfPageCount(pdf.numPages);
+        const thumbsMap = new Map<number, string>();
+        
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const viewport = page.getViewport({ scale: 0.2 });
@@ -29,13 +42,20 @@ export function PageThumbnails({ totalPages, currentPage, onPageClick, onAddPage
           canvas.height = viewport.height;
           canvas.width = viewport.width;
           await page.render({ canvasContext: canvas.getContext("2d")!, viewport }).promise;
-          thumbs.push(canvas.toDataURL());
+          thumbsMap.set(i, canvas.toDataURL());
         }
-        setThumbnails(thumbs);
-      } catch (error) { console.error("Error generating thumbnails:", error); }
+        setThumbnails(thumbsMap);
+      } catch (error) { 
+        console.error("Error generating thumbnails:", error); 
+        generatedRef.current = false;
+      }
     };
     generateThumbnails();
-  }, [pdfUrl, totalPages]);
+  }, [pdfUrl]);
+
+  const handleAddPageClick = useCallback(() => {
+    onAddPage();
+  }, [onAddPage]);
 
   if (collapsed) {
     return (
@@ -45,29 +65,54 @@ export function PageThumbnails({ totalPages, currentPage, onPageClick, onAddPage
     );
   }
 
+  const displayPages = Math.max(totalPages, pdfPageCount, 1);
+
   return (
     <aside className="w-[160px] bg-card border-l border-border flex flex-col">
       <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-        <h3 className="font-semibold text-xs text-foreground">Page Thumbnails</h3>
+        <h3 className="font-semibold text-xs text-foreground">Pages ({displayPages})</h3>
         <button onClick={onToggleCollapse} className="p-1 rounded hover:bg-secondary transition-colors" title="Hide thumbnails">
           <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </div>
       <div className="flex-1 overflow-auto p-3 space-y-3">
-        {thumbnails.length > 0 ? thumbnails.map((thumb, index) => (
-          <button key={index} onClick={() => onPageClick(index + 1)} className="w-full">
-            <div className={cn("thumbnail-card aspect-[7/9] overflow-hidden", currentPage === index + 1 && "thumbnail-card-active")}>
-              <img src={thumb} alt={`Page ${index + 1}`} className="w-full h-full object-contain bg-white rounded-sm" />
-            </div>
-            <p className={cn("mt-1 text-center text-xs font-medium", currentPage === index + 1 ? "text-primary" : "text-muted-foreground")}>{index + 1}</p>
-          </button>
-        )) : Array.from({ length: 3 }, (_, i) => (
-          <div key={i} className="w-full">
-            <div className="thumbnail-card aspect-[7/9] flex items-center justify-center opacity-40"><span className="text-muted-foreground text-xs">{i + 1}</span></div>
-            <p className="mt-1 text-center text-xs font-medium text-muted-foreground">{i + 1}</p>
-          </div>
-        ))}
-        <button onClick={onAddPage} className="w-full thumbnail-card aspect-[7/9] flex flex-col items-center justify-center gap-1 hover:border-primary group">
+        {Array.from({ length: displayPages }, (_, i) => {
+          const pageNum = i + 1;
+          const thumb = thumbnails.get(pageNum);
+          const isBlankPage = pageNum > pdfPageCount;
+          
+          return (
+            <button key={pageNum} onClick={() => onPageClick(pageNum)} className="w-full">
+              <div className={cn(
+                "thumbnail-card aspect-[7/9] overflow-hidden",
+                currentPage === pageNum && "thumbnail-card-active"
+              )}>
+                {thumb ? (
+                  <img src={thumb} alt={`Page ${pageNum}`} className="w-full h-full object-contain bg-white rounded-sm" />
+                ) : (
+                  <div className="w-full h-full bg-white rounded-sm flex items-center justify-center">
+                    {isBlankPage ? (
+                      <span className="text-muted-foreground text-[10px]">Blank</span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">{pageNum}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <p className={cn(
+                "mt-1 text-center text-xs font-medium",
+                currentPage === pageNum ? "text-primary" : "text-muted-foreground"
+              )}>
+                {pageNum}
+              </p>
+            </button>
+          );
+        })}
+        <button 
+          onClick={handleAddPageClick} 
+          className="w-full thumbnail-card aspect-[7/9] flex flex-col items-center justify-center gap-1 hover:border-primary group"
+          type="button"
+        >
           <Plus className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
           <span className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors">Add Page</span>
         </button>
