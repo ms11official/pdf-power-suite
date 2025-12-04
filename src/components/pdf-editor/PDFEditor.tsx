@@ -5,6 +5,7 @@ import { PDFCanvas } from "./PDFCanvas";
 import { PageThumbnails } from "./PageThumbnails";
 import { ZoomControls } from "./ZoomControls";
 import { ToolPanel } from "./ToolPanel";
+import { CanvasOverlayRef } from "./CanvasOverlay";
 import { toast } from "sonner";
 
 export function PDFEditor() {
@@ -21,6 +22,8 @@ export function PDFEditor() {
   const [thumbnailsCollapsed, setThumbnailsCollapsed] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const canvasOverlayRef = useRef<CanvasOverlayRef>(null);
 
   const handleFileUpload = useCallback((file: File) => {
     if (file.type !== "application/pdf") {
@@ -32,6 +35,7 @@ export function PDFEditor() {
     setPdfUrl(url);
     setFileName(file.name);
     setCurrentPage(1);
+    canvasOverlayRef.current?.clear();
     toast.success(`Loaded: ${file.name}`);
   }, []);
 
@@ -76,16 +80,84 @@ export function PDFEditor() {
   }, [pdfUrl, fileName]);
 
   const handleUndo = useCallback(() => {
-    toast.info("Undo action");
+    canvasOverlayRef.current?.undo();
   }, []);
 
   const handleRedo = useCallback(() => {
-    toast.info("Redo action");
+    canvasOverlayRef.current?.redo();
+  }, []);
+
+  const handleHistoryChange = useCallback((canUndoNow: boolean, canRedoNow: boolean) => {
+    setCanUndo(canUndoNow);
+    setCanRedo(canRedoNow);
   }, []);
 
   const handleToolClick = useCallback((toolId: string) => {
     setActiveTool(toolId);
-    toast.info(`Selected: ${toolId}`);
+    
+    switch (toolId) {
+      case "text":
+        canvasOverlayRef.current?.addText();
+        toast.info("Click on canvas to add text");
+        break;
+      case "shapes":
+        canvasOverlayRef.current?.addRect();
+        toast.info("Shape added - drag to position");
+        break;
+      case "image":
+        imageInputRef.current?.click();
+        break;
+      case "draw":
+        toast.info("Drawing mode enabled");
+        break;
+      case "highlight":
+        toast.info("Highlight mode enabled");
+        break;
+      case "eraser":
+        toast.info("Eraser mode enabled");
+        break;
+      case "bold":
+        canvasOverlayRef.current?.setBold();
+        break;
+      case "italic":
+        canvasOverlayRef.current?.setItalic();
+        break;
+      case "underline":
+        canvasOverlayRef.current?.setUnderline();
+        break;
+      case "align-left":
+        canvasOverlayRef.current?.setAlign("left");
+        break;
+      case "align-center":
+        canvasOverlayRef.current?.setAlign("center");
+        break;
+      case "align-right":
+        canvasOverlayRef.current?.setAlign("right");
+        break;
+      case "align-justify":
+        canvasOverlayRef.current?.setAlign("justify");
+        break;
+      case "delete":
+        canvasOverlayRef.current?.deleteSelected();
+        toast.info("Selected objects deleted");
+        break;
+      case "comment":
+        canvasOverlayRef.current?.addText();
+        toast.info("Add your comment");
+        break;
+      case "select":
+        toast.info("Select mode");
+        break;
+    }
+  }, []);
+
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      canvasOverlayRef.current?.addImage(file);
+      toast.success("Image added");
+    }
+    e.target.value = "";
   }, []);
 
   const handleCategoryToolClick = useCallback((toolId: string) => {
@@ -107,6 +179,13 @@ export function PDFEditor() {
           const file = e.target.files?.[0];
           if (file) handleFileUpload(file);
         }}
+      />
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageUpload}
       />
       
       <div className="flex-1 flex overflow-hidden">
@@ -138,8 +217,11 @@ export function PDFEditor() {
               pdfUrl={pdfUrl}
               currentPage={currentPage}
               zoom={zoom}
+              activeTool={activeTool}
               onFileUpload={handleFileUpload}
               onPdfLoaded={handlePdfLoaded}
+              onHistoryChange={handleHistoryChange}
+              canvasRef={canvasOverlayRef}
             />
             
             <PageThumbnails
