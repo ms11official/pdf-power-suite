@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Canvas as FabricCanvas, Rect, Circle, Line, IText, FabricImage, PencilBrush, FabricObject } from "fabric";
+import { Canvas as FabricCanvas, Rect, Circle, Line, IText, FabricImage, PencilBrush, Textbox } from "fabric";
 
 export interface CanvasOverlayRef {
   addText: () => void;
@@ -21,6 +21,12 @@ export interface CanvasOverlayRef {
   setAlign: (align: string) => void;
   clear: () => void;
   getCanvas: () => FabricCanvas | null;
+  addSignature: () => void;
+  addStamp: (type: string) => void;
+  addWatermark: (text: string) => void;
+  addRedaction: () => void;
+  addComment: () => void;
+  addPageNumber: (pageNum: number) => void;
 }
 
 interface CanvasOverlayProps {
@@ -303,6 +309,130 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       },
 
       getCanvas: () => fabricRef.current,
+
+      addSignature: () => {
+        if (!fabricRef.current) return;
+        const signatureText = new IText("Sign Here", {
+          left: 100,
+          top: 100,
+          fontSize: 24,
+          fill: "#1a1a2e",
+          fontFamily: "Brush Script MT, cursive",
+          fontStyle: "italic",
+        });
+        fabricRef.current.add(signatureText);
+        fabricRef.current.setActiveObject(signatureText);
+        signatureText.enterEditing();
+      },
+
+      addStamp: (type: string) => {
+        if (!fabricRef.current) return;
+        const stampColors: Record<string, string> = {
+          approved: "#22c55e",
+          rejected: "#ef4444",
+          draft: "#f59e0b",
+          confidential: "#dc2626",
+        };
+        const color = stampColors[type] || "#6366f1";
+        
+        const stampRect = new Rect({
+          left: 100,
+          top: 100,
+          width: 120,
+          height: 40,
+          fill: "transparent",
+          stroke: color,
+          strokeWidth: 3,
+          rx: 5,
+          ry: 5,
+        });
+        
+        const stampText = new IText(type.toUpperCase(), {
+          left: 110,
+          top: 108,
+          fontSize: 18,
+          fill: color,
+          fontFamily: "Arial",
+          fontWeight: "bold",
+        });
+        
+        fabricRef.current.add(stampRect);
+        fabricRef.current.add(stampText);
+      },
+
+      addWatermark: (text: string) => {
+        if (!fabricRef.current) return;
+        const watermark = new Textbox(text || "WATERMARK", {
+          left: width / 2 - 100,
+          top: height / 2 - 20,
+          width: 200,
+          fontSize: 32,
+          fill: "rgba(150, 150, 150, 0.3)",
+          fontFamily: "Arial",
+          fontWeight: "bold",
+          textAlign: "center",
+          angle: -30,
+          selectable: true,
+        });
+        fabricRef.current.add(watermark);
+        fabricRef.current.setActiveObject(watermark);
+      },
+
+      addRedaction: () => {
+        if (!fabricRef.current) return;
+        const redactRect = new Rect({
+          left: 100,
+          top: 100,
+          width: 150,
+          height: 20,
+          fill: "#000000",
+          stroke: "#000000",
+          strokeWidth: 1,
+        });
+        fabricRef.current.add(redactRect);
+        fabricRef.current.setActiveObject(redactRect);
+      },
+
+      addComment: () => {
+        if (!fabricRef.current) return;
+        const commentBg = new Rect({
+          left: 100,
+          top: 100,
+          width: 180,
+          height: 80,
+          fill: "#fef3c7",
+          stroke: "#f59e0b",
+          strokeWidth: 1,
+          rx: 4,
+          ry: 4,
+        });
+        
+        const commentText = new IText("Add comment...", {
+          left: 108,
+          top: 108,
+          fontSize: 12,
+          fill: "#78350f",
+          fontFamily: "Arial",
+          width: 164,
+        });
+        
+        fabricRef.current.add(commentBg);
+        fabricRef.current.add(commentText);
+        fabricRef.current.setActiveObject(commentText);
+        commentText.enterEditing();
+      },
+
+      addPageNumber: (pageNum: number) => {
+        if (!fabricRef.current) return;
+        const pageText = new IText(`Page ${pageNum}`, {
+          left: width / 2 - 30,
+          top: height - 30,
+          fontSize: 12,
+          fill: "#666666",
+          fontFamily: "Arial",
+        });
+        fabricRef.current.add(pageText);
+      },
     }));
 
     return (
