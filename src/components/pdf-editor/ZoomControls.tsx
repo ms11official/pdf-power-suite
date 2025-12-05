@@ -6,7 +6,8 @@ import {
   Save, 
   Printer,
   Undo,
-  Redo
+  Redo,
+  HelpCircle
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -32,6 +33,7 @@ interface ZoomControlsProps {
   fileName: string | null;
   currentPage: number;
   totalPages: number;
+  onShowShortcuts: () => void;
 }
 
 export function ZoomControls({ 
@@ -49,7 +51,8 @@ export function ZoomControls({
   selectedTool,
   fileName,
   currentPage,
-  totalPages
+  totalPages,
+  onShowShortcuts
 }: ZoomControlsProps) {
   return (
     <div className="h-9 bg-toolbar border-t border-border px-2 flex items-center justify-between">
@@ -162,6 +165,17 @@ export function ZoomControls({
         <span className="font-medium text-foreground">
           Page {currentPage} of {totalPages || 0}
         </span>
+        
+        <Separator orientation="vertical" className="h-4 mx-1" />
+        
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={onShowShortcuts} className="toolbar-btn">
+              <HelpCircle className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="text-xs">Keyboard Shortcuts (?)</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

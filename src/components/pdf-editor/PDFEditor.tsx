@@ -6,6 +6,7 @@ import { PageThumbnails } from "./PageThumbnails";
 import { ZoomControls } from "./ZoomControls";
 import { ToolPanel } from "./ToolPanel";
 import { CanvasOverlayRef } from "./CanvasOverlay";
+import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
 import { toast } from "sonner";
 
 export function PDFEditor() {
@@ -21,6 +22,7 @@ export function PDFEditor() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [thumbnailsCollapsed, setThumbnailsCollapsed] = useState(false);
   const [blankPages, setBlankPages] = useState<number[]>([]);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -100,6 +102,11 @@ export function PDFEditor() {
       } else if (ctrl && e.key === "ArrowLeft" && currentPage > 1) {
         e.preventDefault();
         setCurrentPage(prev => prev - 1);
+      } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        if (document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+          e.preventDefault();
+          setShowShortcuts(true);
+        }
       }
     };
 
@@ -473,9 +480,15 @@ export function PDFEditor() {
             fileName={fileName}
             currentPage={currentPage}
             totalPages={totalPages}
+            onShowShortcuts={() => setShowShortcuts(true)}
           />
         </div>
       </div>
+      
+      <KeyboardShortcutsModal 
+        open={showShortcuts} 
+        onOpenChange={setShowShortcuts} 
+      />
     </div>
   );
 }
