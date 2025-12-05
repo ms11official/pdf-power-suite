@@ -27,22 +27,35 @@ export interface CanvasOverlayRef {
   addRedaction: () => void;
   addComment: () => void;
   addPageNumber: (pageNum: number) => void;
+  setColor: (color: string) => void;
+  copySelected: () => void;
+  paste: () => void;
+  bringToFront: () => void;
+  sendToBack: () => void;
+  flipHorizontal: () => void;
+  rotate90: () => void;
+  hasSelection: () => boolean;
+  getCanvasDataUrl: () => string | null;
 }
 
 interface CanvasOverlayProps {
   width: number;
   height: number;
   activeTool: string;
+  activeColor: string;
   onHistoryChange: (canUndo: boolean, canRedo: boolean) => void;
+  onContextMenu?: (x: number, y: number, hasSelection: boolean) => void;
 }
 
 export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
-  ({ width, height, activeTool, onHistoryChange }, ref) => {
+  ({ width, height, activeTool, activeColor, onHistoryChange, onContextMenu }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricRef = useRef<FabricCanvas | null>(null);
     const historyRef = useRef<string[]>([]);
     const historyIndexRef = useRef<number>(-1);
     const isUndoRedoRef = useRef<boolean>(false);
+    const clipboardRef = useRef<any>(null);
+    const currentColorRef = useRef<string>(activeColor);
 
     const saveHistory = useCallback(() => {
       if (isUndoRedoRef.current || !fabricRef.current) return;
@@ -91,11 +104,12 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       if (!fabricRef.current) return;
       
       const canvas = fabricRef.current;
+      const color = currentColorRef.current;
       
       switch (activeTool) {
         case "draw":
           canvas.isDrawingMode = true;
-          canvas.freeDrawingBrush!.color = "#000000";
+          canvas.freeDrawingBrush!.color = color;
           canvas.freeDrawingBrush!.width = 2;
           break;
         case "highlight":
@@ -121,7 +135,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           left: 100,
           top: 100,
           fontSize: 16,
-          fill: "#000000",
+          fill: currentColorRef.current,
           fontFamily: "Arial",
         });
         fabricRef.current.add(text);
@@ -137,7 +151,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           width: 100,
           height: 80,
           fill: "transparent",
-          stroke: "#6366f1",
+          stroke: currentColorRef.current,
           strokeWidth: 2,
         });
         fabricRef.current.add(rect);
@@ -151,7 +165,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           top: 100,
           radius: 50,
           fill: "transparent",
-          stroke: "#6366f1",
+          stroke: currentColorRef.current,
           strokeWidth: 2,
         });
         fabricRef.current.add(circle);
@@ -161,7 +175,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       addLine: () => {
         if (!fabricRef.current) return;
         const line = new Line([50, 50, 200, 50], {
-          stroke: "#6366f1",
+          stroke: currentColorRef.current,
           strokeWidth: 2,
         });
         fabricRef.current.add(line);
@@ -433,13 +447,123 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
         });
         fabricRef.current.add(pageText);
       },
+
+      setColor: (color: string) => {
+        currentColorRef.current = color;
+        if (!fabricRef.current) return;
+        const activeObject = fabricRef.current.getActiveObject();
+        if (activeObject) {
+          if (activeObject.type === "i-text" || activeObject.type === "textbox") {
+            activeObject.set("fill", color);
+          } else if (activeObject.type === "path") {
+            activeObject.set("stroke", color);
+          } else {
+            activeObject.set("stroke", color);
+          }
+          fabricRef.current.renderAll();
+          saveHistory();
+        }
+        if (fabricRef.current.freeDrawingBrush) {
+          fabricRef.current.freeDrawingBrush.color = color;
+        }
+      },
+
+      copySelected: () => {
+        if (!fabricRef.current) return;
+        const activeObject = fabricRef.current.getActiveObject();
+        if (activeObject) {
+          activeObject.clone().then((cloned: any) => {
+            clipboardRef.current = cloned;
+          });
+        }
+      },
+
+      paste: () => {
+        if (!fabricRef.current || !clipboardRef.current) return;
+        clipboardRef.current.clone().then((cloned: any) => {
+          fabricRef.current?.discardActiveObject();
+          cloned.set({
+            left: (cloned.left || 0) + 20,
+            top: (cloned.top || 0) + 20,
+            evented: true,
+          });
+          if (cloned.type === "activeSelection") {
+            cloned.canvas = fabricRef.current;
+            cloned.forEachObject((obj: any) => fabricRef.current?.add(obj));
+            cloned.setCoords();
+          } else {
+            fabricRef.current?.add(cloned);
+          }
+          clipboardRef.current.left += 20;
+          clipboardRef.current.top += 20;
+          fabricRef.current?.setActiveObject(cloned);
+          fabricRef.current?.renderAll();
+        });
+      },
+
+      bringToFront: () => {
+        if (!fabricRef.current) return;
+        const activeObject = fabricRef.current.getActiveObject();
+        if (activeObject) {
+          fabricRef.current.bringObjectToFront(activeObject);
+          fabricRef.current.renderAll();
+          saveHistory();
+        }
+      },
+
+      sendToBack: () => {
+        if (!fabricRef.current) return;
+        const activeObject = fabricRef.current.getActiveObject();
+        if (activeObject) {
+          fabricRef.current.sendObjectToBack(activeObject);
+          fabricRef.current.renderAll();
+          saveHistory();
+        }
+      },
+
+      flipHorizontal: () => {
+        if (!fabricRef.current) return;
+        const activeObject = fabricRef.current.getActiveObject();
+        if (activeObject) {
+          activeObject.set("flipX", !activeObject.flipX);
+          fabricRef.current.renderAll();
+          saveHistory();
+        }
+      },
+
+      rotate90: () => {
+        if (!fabricRef.current) return;
+        const activeObject = fabricRef.current.getActiveObject();
+        if (activeObject) {
+          const currentAngle = activeObject.angle || 0;
+          activeObject.rotate(currentAngle + 90);
+          fabricRef.current.renderAll();
+          saveHistory();
+        }
+      },
+
+      hasSelection: () => {
+        return !!fabricRef.current?.getActiveObject();
+      },
+
+      getCanvasDataUrl: () => {
+        if (!fabricRef.current) return null;
+        return fabricRef.current.toDataURL({ format: "png", multiplier: 2 });
+      },
     }));
+
+    const handleContextMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
+      const hasSelection = !!fabricRef.current?.getActiveObject();
+      onContextMenu?.(e.clientX, e.clientY, hasSelection);
+    };
 
     return (
       <canvas
         ref={canvasRef}
         className="absolute inset-0 pointer-events-auto"
         style={{ zIndex: 10 }}
+        onContextMenu={handleContextMenu}
       />
     );
   }

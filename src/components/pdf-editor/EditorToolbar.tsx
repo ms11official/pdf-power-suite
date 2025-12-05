@@ -27,6 +27,7 @@ import {
   TooltipContent, 
   TooltipTrigger 
 } from "@/components/ui/tooltip";
+import { ColorPicker } from "./ColorPicker";
 
 interface ToolbarItem {
   id: string;
@@ -66,10 +67,12 @@ const actionTools: ToolbarItem[] = [
 
 interface EditorToolbarProps {
   activeTool: string;
+  activeColor: string;
   onToolClick: (id: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   onDownload: () => void;
+  onColorChange: (color: string) => void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -105,10 +108,12 @@ function ToolButton({
 
 export function EditorToolbar({ 
   activeTool, 
+  activeColor,
   onToolClick,
   onUndo,
   onRedo,
   onDownload,
+  onColorChange,
   canUndo,
   canRedo
 }: EditorToolbarProps) {
@@ -155,6 +160,11 @@ export function EditorToolbar({
           />
         ))}
       </div>
+      
+      <Separator orientation="vertical" className="h-5 mx-1" />
+      
+      {/* Color Picker */}
+      <ColorPicker color={activeColor} onChange={onColorChange} />
       
       <Separator orientation="vertical" className="h-5 mx-1" />
       
