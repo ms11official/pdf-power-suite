@@ -7,11 +7,14 @@ import { ZoomControls } from "./ZoomControls";
 import { ToolPanel } from "./ToolPanel";
 import { CanvasOverlayRef } from "./CanvasOverlay";
 import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
+import { CanvasContextMenu } from "./CanvasContextMenu";
+import { PDFDocument } from "pdf-lib";
 import { toast } from "sonner";
 
 export function PDFEditor() {
   const [activeCategory, setActiveCategory] = useState("edit");
   const [activeTool, setActiveTool] = useState("select");
+  const [activeColor, setActiveColor] = useState("#000000");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -23,6 +26,7 @@ export function PDFEditor() {
   const [thumbnailsCollapsed, setThumbnailsCollapsed] = useState(false);
   const [blankPages, setBlankPages] = useState<number[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, hasSelection: false });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -122,17 +126,60 @@ export function PDFEditor() {
     window.print();
   }, []);
 
-  const handleDownload = useCallback(() => {
-    if (pdfUrl) {
+  const handleDownload = useCallback(async () => {
+    if (!pdfUrl) {
+      toast.error("No document to download");
+      return;
+    }
+    
+    try {
+      toast.loading("Preparing PDF with annotations...");
+      
+      // Fetch original PDF
+      const existingPdfBytes = await fetch(pdfUrl).then(res => res.arrayBuffer());
+      const pdfDoc = await PDFDocument.load(existingPdfBytes);
+      
+      // Get canvas annotation as image
+      const annotationDataUrl = canvasOverlayRef.current?.getCanvasDataUrl();
+      if (annotationDataUrl) {
+        const pngImageBytes = await fetch(annotationDataUrl).then(res => res.arrayBuffer());
+        const pngImage = await pdfDoc.embedPng(pngImageBytes);
+        
+        const pages = pdfDoc.getPages();
+        const page = pages[currentPage - 1];
+        const { width, height } = page.getSize();
+        
+        page.drawImage(pngImage, {
+          x: 0,
+          y: 0,
+          width,
+          height,
+        });
+      }
+      
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName?.replace(".pdf", "_annotated.pdf") || "document_annotated.pdf";
+      link.click();
+      
+      URL.revokeObjectURL(url);
+      toast.dismiss();
+      toast.success("PDF with annotations downloaded!");
+    } catch (error) {
+      toast.dismiss();
+      console.error("Error exporting PDF:", error);
+      // Fallback to simple download
       const link = document.createElement("a");
       link.href = pdfUrl;
       link.download = fileName || "document.pdf";
       link.click();
-      toast.success("Download started");
-    } else {
-      toast.error("No document to download");
+      toast.success("Download started (without annotations)");
     }
-  }, [pdfUrl, fileName]);
+  }, [pdfUrl, fileName, currentPage]);
 
   const handleZoomIn = useCallback(() => {
     setZoom((prev) => Math.min(prev + 25, 400));
@@ -397,6 +444,46 @@ export function PDFEditor() {
     toast.success(`Page ${newPageNum} added`);
   }, [totalPages]);
 
+  const handleContextMenu = useCallback((x: number, y: number, hasSelection: boolean) => {
+    setContextMenu({ visible: true, x, y, hasSelection });
+  }, []);
+
+  const handleContextMenuAction = useCallback((actionId: string) => {
+    switch (actionId) {
+      case "copy":
+        canvasOverlayRef.current?.copySelected();
+        toast.success("Copied");
+        break;
+      case "paste":
+        canvasOverlayRef.current?.paste();
+        toast.success("Pasted");
+        break;
+      case "delete":
+        canvasOverlayRef.current?.deleteSelected();
+        toast.success("Deleted");
+        break;
+      case "bring-front":
+        canvasOverlayRef.current?.bringToFront();
+        toast.success("Brought to front");
+        break;
+      case "send-back":
+        canvasOverlayRef.current?.sendToBack();
+        toast.success("Sent to back");
+        break;
+      case "flip-horizontal":
+        canvasOverlayRef.current?.flipHorizontal();
+        break;
+      case "rotate":
+        canvasOverlayRef.current?.rotate90();
+        break;
+    }
+  }, []);
+
+  const handleColorChange = useCallback((color: string) => {
+    setActiveColor(color);
+    canvasOverlayRef.current?.setColor(color);
+  }, []);
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       <input
@@ -428,10 +515,12 @@ export function PDFEditor() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <EditorToolbar
             activeTool={activeTool}
+            activeColor={activeColor}
             onToolClick={handleToolClick}
             onUndo={handleUndo}
             onRedo={handleRedo}
             onDownload={handleDownload}
+            onColorChange={handleColorChange}
             canUndo={canUndo}
             canRedo={canRedo}
           />
@@ -447,9 +536,11 @@ export function PDFEditor() {
               currentPage={currentPage}
               zoom={zoom}
               activeTool={activeTool}
+              activeColor={activeColor}
               onFileUpload={handleFileUpload}
               onPdfLoaded={handlePdfLoaded}
               onHistoryChange={handleHistoryChange}
+              onContextMenu={handleContextMenu}
               canvasRef={canvasOverlayRef}
             />
             
@@ -488,6 +579,15 @@ export function PDFEditor() {
       <KeyboardShortcutsModal 
         open={showShortcuts} 
         onOpenChange={setShowShortcuts} 
+      />
+      
+      <CanvasContextMenu
+        x={contextMenu.x}
+        y={contextMenu.y}
+        visible={contextMenu.visible}
+        hasSelection={contextMenu.hasSelection}
+        onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+        onAction={handleContextMenuAction}
       />
     </div>
   );

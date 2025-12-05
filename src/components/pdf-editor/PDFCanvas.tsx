@@ -13,9 +13,11 @@ interface PDFCanvasProps {
   currentPage: number;
   zoom: number;
   activeTool: string;
+  activeColor: string;
   onFileUpload: (file: File) => void;
   onPdfLoaded: (numPages: number) => void;
   onHistoryChange: (canUndo: boolean, canRedo: boolean) => void;
+  onContextMenu?: (x: number, y: number, hasSelection: boolean) => void;
   canvasRef: React.RefObject<CanvasOverlayRef>;
 }
 
@@ -24,9 +26,11 @@ export function PDFCanvas({
   currentPage, 
   zoom, 
   activeTool,
+  activeColor,
   onFileUpload, 
   onPdfLoaded,
   onHistoryChange,
+  onContextMenu,
   canvasRef
 }: PDFCanvasProps) {
   const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -128,7 +132,9 @@ export function PDFCanvas({
             width={canvasSize.width}
             height={canvasSize.height}
             activeTool={activeTool}
+            activeColor={activeColor}
             onHistoryChange={onHistoryChange}
+            onContextMenu={onContextMenu}
           />
         </div>
       </div>
