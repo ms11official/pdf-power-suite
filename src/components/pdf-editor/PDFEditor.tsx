@@ -15,6 +15,9 @@ export function PDFEditor() {
   const [activeCategory, setActiveCategory] = useState("edit");
   const [activeTool, setActiveTool] = useState("select");
   const [activeColor, setActiveColor] = useState("#000000");
+  const [fontSize, setFontSize] = useState(16);
+  const [fontFamily, setFontFamily] = useState("Arial");
+  const [strokeWidth, setStrokeWidth] = useState(2);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -28,9 +31,46 @@ export function PDFEditor() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, hasSelection: false });
   
+  // Multi-page annotation storage
+  const [pageAnnotations, setPageAnnotations] = useState<Record<number, string>>({});
+  const lastPageRef = useRef<number>(1);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const canvasOverlayRef = useRef<CanvasOverlayRef>(null);
+
+  // Save annotations when leaving a page
+  const saveCurrentPageAnnotations = useCallback(() => {
+    if (canvasOverlayRef.current && lastPageRef.current > 0) {
+      const annotations = canvasOverlayRef.current.exportAnnotations();
+      if (annotations && annotations !== "{}") {
+        setPageAnnotations(prev => ({
+          ...prev,
+          [lastPageRef.current]: annotations
+        }));
+      }
+    }
+  }, []);
+
+  // Load annotations when changing pages
+  useEffect(() => {
+    if (currentPage !== lastPageRef.current) {
+      // Save current page annotations first
+      saveCurrentPageAnnotations();
+      
+      // Clear canvas and load new page annotations
+      setTimeout(() => {
+        if (canvasOverlayRef.current) {
+          canvasOverlayRef.current.clear();
+          const savedAnnotations = pageAnnotations[currentPage];
+          if (savedAnnotations) {
+            canvasOverlayRef.current.importAnnotations(savedAnnotations);
+          }
+        }
+        lastPageRef.current = currentPage;
+      }, 100);
+    }
+  }, [currentPage, pageAnnotations, saveCurrentPageAnnotations]);
 
   const handleFileUpload = useCallback((file: File) => {
     if (file.type !== "application/pdf") {
@@ -38,14 +78,19 @@ export function PDFEditor() {
       return;
     }
     
+    // Save current annotations before loading new file
+    saveCurrentPageAnnotations();
+    
     const url = URL.createObjectURL(file);
     setPdfUrl(url);
     setFileName(file.name);
     setCurrentPage(1);
     setBlankPages([]);
+    setPageAnnotations({});
+    lastPageRef.current = 1;
     canvasOverlayRef.current?.clear();
     toast.success(`Loaded: ${file.name}`);
-  }, []);
+  }, [saveCurrentPageAnnotations]);
 
   const handlePdfLoaded = useCallback((numPages: number) => {
     setTotalPages(numPages);
@@ -119,8 +164,9 @@ export function PDFEditor() {
   }, [currentPage, totalPages]);
 
   const handleSave = useCallback(() => {
+    saveCurrentPageAnnotations();
     toast.success("Document saved");
-  }, []);
+  }, [saveCurrentPageAnnotations]);
 
   const handlePrint = useCallback(() => {
     window.print();
@@ -132,14 +178,23 @@ export function PDFEditor() {
       return;
     }
     
+    // Save current page annotations first
+    saveCurrentPageAnnotations();
+    
     try {
       toast.loading("Preparing PDF with annotations...");
       
-      // Fetch original PDF
       const existingPdfBytes = await fetch(pdfUrl).then(res => res.arrayBuffer());
       const pdfDoc = await PDFDocument.load(existingPdfBytes);
       
-      // Get canvas annotation as image
+      // Get all pages with annotations
+      const allAnnotations = { ...pageAnnotations };
+      const currentAnnotations = canvasOverlayRef.current?.exportAnnotations();
+      if (currentAnnotations && currentAnnotations !== "{}") {
+        allAnnotations[currentPage] = currentAnnotations;
+      }
+      
+      // For now, apply current page annotation (multi-page export would require more complex logic)
       const annotationDataUrl = canvasOverlayRef.current?.getCanvasDataUrl();
       if (annotationDataUrl) {
         const pngImageBytes = await fetch(annotationDataUrl).then(res => res.arrayBuffer());
@@ -172,14 +227,13 @@ export function PDFEditor() {
     } catch (error) {
       toast.dismiss();
       console.error("Error exporting PDF:", error);
-      // Fallback to simple download
       const link = document.createElement("a");
       link.href = pdfUrl;
       link.download = fileName || "document.pdf";
       link.click();
       toast.success("Download started (without annotations)");
     }
-  }, [pdfUrl, fileName, currentPage]);
+  }, [pdfUrl, fileName, currentPage, pageAnnotations, saveCurrentPageAnnotations]);
 
   const handleZoomIn = useCallback(() => {
     setZoom((prev) => Math.min(prev + 25, 400));
@@ -277,7 +331,6 @@ export function PDFEditor() {
 
   const handleCategoryToolClick = useCallback((toolId: string) => {
     switch (toolId) {
-      // Edit category
       case "edit-text":
         setActiveTool("select");
         toast.info("Click on any text to edit");
@@ -297,8 +350,6 @@ export function PDFEditor() {
         canvasOverlayRef.current?.addComment();
         toast.success("Comment added");
         break;
-      
-      // Fill category
       case "fill-form":
         canvasOverlayRef.current?.addText();
         toast.info("Click on form fields to fill");
@@ -311,8 +362,6 @@ export function PDFEditor() {
         canvasOverlayRef.current?.addStamp("approved");
         toast.success("Stamp added - drag to position");
         break;
-      
-      // Organize category
       case "merge":
         toast.info("Upload multiple PDFs to merge");
         fileInputRef.current?.click();
@@ -342,8 +391,6 @@ export function PDFEditor() {
           toast.error("Cannot delete the last page");
         }
         break;
-      
-      // Protect category
       case "password":
         toast.success("Password protection dialog opened");
         break;
@@ -358,8 +405,6 @@ export function PDFEditor() {
         canvasOverlayRef.current?.addSignature();
         toast.success("E-signature field added");
         break;
-      
-      // Convert category
       case "to-word":
         if (pdfUrl) {
           toast.success("Converting to Word document...");
@@ -404,8 +449,6 @@ export function PDFEditor() {
           toast.error("Please load a PDF first");
         }
         break;
-      
-      // Advanced category
       case "compress":
         if (pdfUrl) {
           toast.success("Compressing PDF...");
@@ -430,7 +473,6 @@ export function PDFEditor() {
         canvasOverlayRef.current?.addPageNumber(currentPage);
         toast.success("Page number added");
         break;
-      
       default:
         toast.info(`Tool: ${toolId}`);
     }
@@ -484,6 +526,21 @@ export function PDFEditor() {
     canvasOverlayRef.current?.setColor(color);
   }, []);
 
+  const handleFontSizeChange = useCallback((size: number) => {
+    setFontSize(size);
+    canvasOverlayRef.current?.setFontSize(size);
+  }, []);
+
+  const handleFontFamilyChange = useCallback((family: string) => {
+    setFontFamily(family);
+    canvasOverlayRef.current?.setFontFamily(family);
+  }, []);
+
+  const handleStrokeWidthChange = useCallback((width: number) => {
+    setStrokeWidth(width);
+    canvasOverlayRef.current?.setStrokeWidth(width);
+  }, []);
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       <input
@@ -516,11 +573,17 @@ export function PDFEditor() {
           <EditorToolbar
             activeTool={activeTool}
             activeColor={activeColor}
+            fontSize={fontSize}
+            fontFamily={fontFamily}
+            strokeWidth={strokeWidth}
             onToolClick={handleToolClick}
             onUndo={handleUndo}
             onRedo={handleRedo}
             onDownload={handleDownload}
             onColorChange={handleColorChange}
+            onFontSizeChange={handleFontSizeChange}
+            onFontFamilyChange={handleFontFamilyChange}
+            onStrokeWidthChange={handleStrokeWidthChange}
             canUndo={canUndo}
             canRedo={canRedo}
           />
@@ -537,6 +600,9 @@ export function PDFEditor() {
               zoom={zoom}
               activeTool={activeTool}
               activeColor={activeColor}
+              fontSize={fontSize}
+              fontFamily={fontFamily}
+              strokeWidth={strokeWidth}
               onFileUpload={handleFileUpload}
               onPdfLoaded={handlePdfLoaded}
               onHistoryChange={handleHistoryChange}

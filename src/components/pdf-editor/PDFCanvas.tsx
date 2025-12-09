@@ -14,6 +14,9 @@ interface PDFCanvasProps {
   zoom: number;
   activeTool: string;
   activeColor: string;
+  fontSize: number;
+  fontFamily: string;
+  strokeWidth: number;
   onFileUpload: (file: File) => void;
   onPdfLoaded: (numPages: number) => void;
   onHistoryChange: (canUndo: boolean, canRedo: boolean) => void;
@@ -27,6 +30,9 @@ export function PDFCanvas({
   zoom, 
   activeTool,
   activeColor,
+  fontSize,
+  fontFamily,
+  strokeWidth,
   onFileUpload, 
   onPdfLoaded,
   onHistoryChange,
@@ -133,6 +139,9 @@ export function PDFCanvas({
             height={canvasSize.height}
             activeTool={activeTool}
             activeColor={activeColor}
+            fontSize={fontSize}
+            fontFamily={fontFamily}
+            strokeWidth={strokeWidth}
             onHistoryChange={onHistoryChange}
             onContextMenu={onContextMenu}
           />
