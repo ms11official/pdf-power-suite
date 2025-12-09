@@ -28,6 +28,8 @@ import {
   TooltipTrigger 
 } from "@/components/ui/tooltip";
 import { ColorPicker } from "./ColorPicker";
+import { FontControls } from "./FontControls";
+import { StrokeWidthSlider } from "./StrokeWidthSlider";
 
 interface ToolbarItem {
   id: string;
@@ -68,11 +70,17 @@ const actionTools: ToolbarItem[] = [
 interface EditorToolbarProps {
   activeTool: string;
   activeColor: string;
+  fontSize: number;
+  fontFamily: string;
+  strokeWidth: number;
   onToolClick: (id: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   onDownload: () => void;
   onColorChange: (color: string) => void;
+  onFontSizeChange: (size: number) => void;
+  onFontFamilyChange: (family: string) => void;
+  onStrokeWidthChange: (width: number) => void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -109,18 +117,24 @@ function ToolButton({
 export function EditorToolbar({ 
   activeTool, 
   activeColor,
+  fontSize,
+  fontFamily,
+  strokeWidth,
   onToolClick,
   onUndo,
   onRedo,
   onDownload,
   onColorChange,
+  onFontSizeChange,
+  onFontFamilyChange,
+  onStrokeWidthChange,
   canUndo,
   canRedo
 }: EditorToolbarProps) {
   return (
-    <div className="h-10 bg-toolbar border-b border-border px-2 flex items-center justify-between gap-1">
+    <div className="h-10 bg-toolbar border-b border-border px-2 flex items-center justify-between gap-1 overflow-x-auto">
       {/* History */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 flex-shrink-0">
         <Tooltip>
           <TooltipTrigger asChild>
             <button 
@@ -147,10 +161,10 @@ export function EditorToolbar({
         </Tooltip>
       </div>
       
-      <Separator orientation="vertical" className="h-5 mx-1" />
+      <Separator orientation="vertical" className="h-5 mx-1 flex-shrink-0" />
       
       {/* Primary Tools */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 flex-shrink-0">
         {tools.map((tool) => (
           <ToolButton
             key={tool.id}
@@ -161,15 +175,28 @@ export function EditorToolbar({
         ))}
       </div>
       
-      <Separator orientation="vertical" className="h-5 mx-1" />
+      <Separator orientation="vertical" className="h-5 mx-1 flex-shrink-0" />
       
       {/* Color Picker */}
       <ColorPicker color={activeColor} onChange={onColorChange} />
       
-      <Separator orientation="vertical" className="h-5 mx-1" />
+      {/* Stroke Width Slider */}
+      <StrokeWidthSlider strokeWidth={strokeWidth} onStrokeWidthChange={onStrokeWidthChange} />
+      
+      <Separator orientation="vertical" className="h-5 mx-1 flex-shrink-0" />
+      
+      {/* Font Controls */}
+      <FontControls
+        fontSize={fontSize}
+        fontFamily={fontFamily}
+        onFontSizeChange={onFontSizeChange}
+        onFontFamilyChange={onFontFamilyChange}
+      />
+      
+      <Separator orientation="vertical" className="h-5 mx-1 flex-shrink-0" />
       
       {/* Format Tools */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 flex-shrink-0">
         {formatTools.map((tool) => (
           <ToolButton
             key={tool.id}
@@ -180,10 +207,10 @@ export function EditorToolbar({
         ))}
       </div>
       
-      <Separator orientation="vertical" className="h-5 mx-1" />
+      <Separator orientation="vertical" className="h-5 mx-1 flex-shrink-0" />
       
       {/* Align Tools */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 flex-shrink-0">
         {alignTools.map((tool) => (
           <ToolButton
             key={tool.id}
@@ -194,10 +221,10 @@ export function EditorToolbar({
         ))}
       </div>
       
-      <Separator orientation="vertical" className="h-5 mx-1" />
+      <Separator orientation="vertical" className="h-5 mx-1 flex-shrink-0" />
       
       {/* Action Tools */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 flex-shrink-0">
         {actionTools.map((tool) => (
           <ToolButton
             key={tool.id}
@@ -208,10 +235,13 @@ export function EditorToolbar({
         ))}
       </div>
 
+      {/* Spacer */}
+      <div className="flex-1" />
+
       {/* Download Button */}
       <button
         onClick={onDownload}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex-shrink-0"
       >
         <Download className="w-3.5 h-3.5" />
         <span>Download</span>

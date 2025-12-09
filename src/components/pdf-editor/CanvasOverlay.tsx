@@ -36,6 +36,11 @@ export interface CanvasOverlayRef {
   rotate90: () => void;
   hasSelection: () => boolean;
   getCanvasDataUrl: () => string | null;
+  setFontSize: (size: number) => void;
+  setFontFamily: (family: string) => void;
+  setStrokeWidth: (width: number) => void;
+  exportAnnotations: () => string;
+  importAnnotations: (json: string) => void;
 }
 
 interface CanvasOverlayProps {
@@ -43,12 +48,15 @@ interface CanvasOverlayProps {
   height: number;
   activeTool: string;
   activeColor: string;
+  fontSize: number;
+  fontFamily: string;
+  strokeWidth: number;
   onHistoryChange: (canUndo: boolean, canRedo: boolean) => void;
   onContextMenu?: (x: number, y: number, hasSelection: boolean) => void;
 }
 
 export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
-  ({ width, height, activeTool, activeColor, onHistoryChange, onContextMenu }, ref) => {
+  ({ width, height, activeTool, activeColor, fontSize, fontFamily, strokeWidth, onHistoryChange, onContextMenu }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricRef = useRef<FabricCanvas | null>(null);
     const historyRef = useRef<string[]>([]);
@@ -56,6 +64,29 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
     const isUndoRedoRef = useRef<boolean>(false);
     const clipboardRef = useRef<any>(null);
     const currentColorRef = useRef<string>(activeColor);
+    const currentFontSizeRef = useRef<number>(fontSize);
+    const currentFontFamilyRef = useRef<string>(fontFamily);
+    const currentStrokeWidthRef = useRef<number>(strokeWidth);
+
+    // Update refs when props change
+    useEffect(() => {
+      currentColorRef.current = activeColor;
+    }, [activeColor]);
+
+    useEffect(() => {
+      currentFontSizeRef.current = fontSize;
+    }, [fontSize]);
+
+    useEffect(() => {
+      currentFontFamilyRef.current = fontFamily;
+    }, [fontFamily]);
+
+    useEffect(() => {
+      currentStrokeWidthRef.current = strokeWidth;
+      if (fabricRef.current?.freeDrawingBrush) {
+        fabricRef.current.freeDrawingBrush.width = strokeWidth;
+      }
+    }, [strokeWidth]);
 
     const saveHistory = useCallback(() => {
       if (isUndoRedoRef.current || !fabricRef.current) return;
@@ -80,7 +111,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
 
       canvas.freeDrawingBrush = new PencilBrush(canvas);
       canvas.freeDrawingBrush.color = "#000000";
-      canvas.freeDrawingBrush.width = 2;
+      canvas.freeDrawingBrush.width = currentStrokeWidthRef.current;
 
       canvas.on("object:added", saveHistory);
       canvas.on("object:modified", saveHistory);
@@ -105,12 +136,13 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       
       const canvas = fabricRef.current;
       const color = currentColorRef.current;
+      const sw = currentStrokeWidthRef.current;
       
       switch (activeTool) {
         case "draw":
           canvas.isDrawingMode = true;
           canvas.freeDrawingBrush!.color = color;
-          canvas.freeDrawingBrush!.width = 2;
+          canvas.freeDrawingBrush!.width = sw;
           break;
         case "highlight":
           canvas.isDrawingMode = true;
@@ -134,9 +166,9 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
         const text = new IText("Type here...", {
           left: 100,
           top: 100,
-          fontSize: 16,
+          fontSize: currentFontSizeRef.current,
           fill: currentColorRef.current,
-          fontFamily: "Arial",
+          fontFamily: currentFontFamilyRef.current,
         });
         fabricRef.current.add(text);
         fabricRef.current.setActiveObject(text);
@@ -152,7 +184,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           height: 80,
           fill: "transparent",
           stroke: currentColorRef.current,
-          strokeWidth: 2,
+          strokeWidth: currentStrokeWidthRef.current,
         });
         fabricRef.current.add(rect);
         fabricRef.current.setActiveObject(rect);
@@ -166,7 +198,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           radius: 50,
           fill: "transparent",
           stroke: currentColorRef.current,
-          strokeWidth: 2,
+          strokeWidth: currentStrokeWidthRef.current,
         });
         fabricRef.current.add(circle);
         fabricRef.current.setActiveObject(circle);
@@ -176,7 +208,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
         if (!fabricRef.current) return;
         const line = new Line([50, 50, 200, 50], {
           stroke: currentColorRef.current,
-          strokeWidth: 2,
+          strokeWidth: currentStrokeWidthRef.current,
         });
         fabricRef.current.add(line);
         fabricRef.current.setActiveObject(line);
@@ -206,8 +238,8 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
         if (!fabricRef.current) return;
         fabricRef.current.isDrawingMode = enabled;
         if (enabled) {
-          fabricRef.current.freeDrawingBrush!.color = "#000000";
-          fabricRef.current.freeDrawingBrush!.width = 2;
+          fabricRef.current.freeDrawingBrush!.color = currentColorRef.current;
+          fabricRef.current.freeDrawingBrush!.width = currentStrokeWidthRef.current;
         }
       },
 
@@ -468,6 +500,48 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
         }
       },
 
+      setFontSize: (size: number) => {
+        currentFontSizeRef.current = size;
+        if (!fabricRef.current) return;
+        const activeObject = fabricRef.current.getActiveObject();
+        if (activeObject && (activeObject.type === "i-text" || activeObject.type === "textbox")) {
+          const textObj = activeObject as IText;
+          textObj.set("fontSize", size);
+          fabricRef.current.renderAll();
+          saveHistory();
+        }
+      },
+
+      setFontFamily: (family: string) => {
+        currentFontFamilyRef.current = family;
+        if (!fabricRef.current) return;
+        const activeObject = fabricRef.current.getActiveObject();
+        if (activeObject && (activeObject.type === "i-text" || activeObject.type === "textbox")) {
+          const textObj = activeObject as IText;
+          textObj.set("fontFamily", family);
+          fabricRef.current.renderAll();
+          saveHistory();
+        }
+      },
+
+      setStrokeWidth: (width: number) => {
+        currentStrokeWidthRef.current = width;
+        if (!fabricRef.current) return;
+        
+        // Update brush
+        if (fabricRef.current.freeDrawingBrush) {
+          fabricRef.current.freeDrawingBrush.width = width;
+        }
+        
+        // Update selected object
+        const activeObject = fabricRef.current.getActiveObject();
+        if (activeObject && activeObject.type !== "i-text" && activeObject.type !== "textbox") {
+          activeObject.set("strokeWidth", width);
+          fabricRef.current.renderAll();
+          saveHistory();
+        }
+      },
+
       copySelected: () => {
         if (!fabricRef.current) return;
         const activeObject = fabricRef.current.getActiveObject();
@@ -549,6 +623,23 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       getCanvasDataUrl: () => {
         if (!fabricRef.current) return null;
         return fabricRef.current.toDataURL({ format: "png", multiplier: 2 });
+      },
+
+      exportAnnotations: () => {
+        if (!fabricRef.current) return "{}";
+        return JSON.stringify(fabricRef.current.toJSON());
+      },
+
+      importAnnotations: (json: string) => {
+        if (!fabricRef.current || !json || json === "{}") return;
+        isUndoRedoRef.current = true;
+        fabricRef.current.loadFromJSON(json).then(() => {
+          fabricRef.current?.renderAll();
+          isUndoRedoRef.current = false;
+          historyRef.current = [json];
+          historyIndexRef.current = 0;
+          onHistoryChange(false, false);
+        });
       },
     }));
 
