@@ -8,8 +8,15 @@ import { ToolPanel } from "./ToolPanel";
 import { CanvasOverlayRef } from "./CanvasOverlay";
 import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
 import { CanvasContextMenu } from "./CanvasContextMenu";
+import { BookmarkPanel, BookmarkItem } from "./BookmarkPanel";
+import { SearchPanel, SearchResult } from "./SearchPanel";
+import { MergeDialog } from "./MergeDialog";
 import { PDFDocument } from "pdf-lib";
+import * as pdfjsLib from "pdfjs-dist";
 import { toast } from "sonner";
+
+// Set PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 export function PDFEditor() {
   const [activeCategory, setActiveCategory] = useState("edit");
@@ -34,9 +41,23 @@ export function PDFEditor() {
   const [darkMode, setDarkMode] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   
+  // Bookmark state
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
+  
+  // Search state
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Merge dialog state
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
+  
   // Multi-page annotation storage
   const [pageAnnotations, setPageAnnotations] = useState<Record<number, string>>({});
   const lastPageRef = useRef<number>(1);
+  const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +94,7 @@ export function PDFEditor() {
     }
   }, [currentPage, pageAnnotations, saveCurrentPageAnnotations]);
 
-  const handleFileUpload = useCallback((file: File) => {
+  const handleFileUpload = useCallback(async (file: File) => {
     if (file.type !== "application/pdf") {
       toast.error("Please upload a PDF file");
       return;
@@ -87,10 +108,135 @@ export function PDFEditor() {
     setCurrentPage(1);
     setBlankPages([]);
     setPageAnnotations({});
+    setBookmarks([]);
+    setSearchResults([]);
     lastPageRef.current = 1;
     canvasOverlayRef.current?.clear();
+    
+    // Load PDF for text search
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      pdfDocRef.current = pdfDoc;
+    } catch (error) {
+      console.error("Failed to load PDF for search:", error);
+    }
+    
     toast.success(`Loaded: ${file.name}`);
   }, [saveCurrentPageAnnotations]);
+
+  // Bookmark handlers
+  const handleAddBookmark = useCallback((title: string, page: number) => {
+    const newBookmark: BookmarkItem = {
+      id: `bookmark-${Date.now()}`,
+      title,
+      page,
+    };
+    setBookmarks(prev => [...prev, newBookmark]);
+    toast.success(`Bookmark "${title}" added`);
+  }, []);
+
+  const handleEditBookmark = useCallback((id: string, title: string) => {
+    setBookmarks(prev => prev.map(b => b.id === id ? { ...b, title } : b));
+    toast.success("Bookmark updated");
+  }, []);
+
+  const handleDeleteBookmark = useCallback((id: string) => {
+    setBookmarks(prev => prev.filter(b => b.id !== id));
+    toast.success("Bookmark deleted");
+  }, []);
+
+  const handleNavigateToBookmark = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  // Search handlers
+  const handleSearch = useCallback(async (query: string) => {
+    if (!pdfDocRef.current) {
+      toast.error("Please load a PDF first");
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchResults([]);
+    setCurrentSearchIndex(0);
+
+    try {
+      const results: SearchResult[] = [];
+      const numPages = pdfDocRef.current.numPages;
+
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const page = await pdfDocRef.current.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(" ");
+
+        const lowerQuery = query.toLowerCase();
+        const lowerText = pageText.toLowerCase();
+        let startIndex = 0;
+        let index = 0;
+
+        while ((startIndex = lowerText.indexOf(lowerQuery, startIndex)) !== -1) {
+          const contextStart = Math.max(0, startIndex - 30);
+          const contextEnd = Math.min(pageText.length, startIndex + query.length + 30);
+          const text = pageText.substring(contextStart, contextEnd);
+
+          results.push({
+            page: pageNum,
+            text: (contextStart > 0 ? "..." : "") + text + (contextEnd < pageText.length ? "..." : ""),
+            index: index++,
+          });
+
+          startIndex += query.length;
+        }
+      }
+
+      setSearchResults(results);
+      if (results.length > 0) {
+        setCurrentPage(results[0].page);
+        toast.success(`Found ${results.length} result(s)`);
+      } else {
+        toast.info("No results found");
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      toast.error("Search failed");
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const handleNavigateToSearchResult = useCallback((result: SearchResult) => {
+    setCurrentPage(result.page);
+    const index = searchResults.findIndex(r => r.page === result.page && r.index === result.index);
+    if (index !== -1) {
+      setCurrentSearchIndex(index);
+    }
+  }, [searchResults]);
+
+  const handleNextSearchResult = useCallback(() => {
+    if (searchResults.length === 0) return;
+    const nextIndex = (currentSearchIndex + 1) % searchResults.length;
+    setCurrentSearchIndex(nextIndex);
+    setCurrentPage(searchResults[nextIndex].page);
+  }, [searchResults, currentSearchIndex]);
+
+  const handlePrevSearchResult = useCallback(() => {
+    if (searchResults.length === 0) return;
+    const prevIndex = (currentSearchIndex - 1 + searchResults.length) % searchResults.length;
+    setCurrentSearchIndex(prevIndex);
+    setCurrentPage(searchResults[prevIndex].page);
+  }, [searchResults, currentSearchIndex]);
+
+  // Merge handler
+  const handleMergeComplete = useCallback((mergedPdfUrl: string, mergedFileName: string) => {
+    setPdfUrl(mergedPdfUrl);
+    setFileName(mergedFileName);
+    setCurrentPage(1);
+    setPageAnnotations({});
+    canvasOverlayRef.current?.clear();
+  }, []);
 
   const handlePdfLoaded = useCallback((numPages: number) => {
     setTotalPages(numPages);
@@ -123,6 +269,12 @@ export function PDFEditor() {
       } else if (ctrl && e.key === "d") {
         e.preventDefault();
         handleDownload();
+      } else if (ctrl && e.key === "f") {
+        e.preventDefault();
+        setShowSearch(true);
+      } else if (ctrl && e.key === "b") {
+        e.preventDefault();
+        setShowBookmarks(prev => !prev);
       } else if (e.key === "+" || (ctrl && e.key === "=")) {
         e.preventDefault();
         handleZoomIn();
@@ -146,6 +298,7 @@ export function PDFEditor() {
       } else if (e.key === "Escape") {
         setActiveTool("select");
         setIsPanning(false);
+        setShowSearch(false);
       } else if (ctrl && e.key === "ArrowRight" && currentPage < totalPages) {
         e.preventDefault();
         setCurrentPage(prev => prev + 1);
@@ -365,10 +518,10 @@ export function PDFEditor() {
         handleFitToPage();
         break;
       case "search-text":
-        toast.info("Search feature - use Ctrl+F in browser");
+        setShowSearch(true);
         break;
       case "bookmark":
-        toast.success("Bookmark added to current page");
+        setShowBookmarks(true);
         break;
       case "dark-mode":
         setDarkMode(prev => !prev);
@@ -464,8 +617,7 @@ export function PDFEditor() {
       
       // Organize tools
       case "merge":
-        toast.info("Upload multiple PDFs to merge");
-        fileInputRef.current?.click();
+        setShowMergeDialog(true);
         break;
       case "split":
         if (pdfUrl) {
@@ -858,6 +1010,37 @@ export function PDFEditor() {
         hasSelection={contextMenu.hasSelection}
         onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
         onAction={handleContextMenuAction}
+      />
+      
+      <BookmarkPanel
+        open={showBookmarks}
+        onClose={() => setShowBookmarks(false)}
+        bookmarks={bookmarks}
+        onAddBookmark={handleAddBookmark}
+        onEditBookmark={handleEditBookmark}
+        onDeleteBookmark={handleDeleteBookmark}
+        onNavigate={handleNavigateToBookmark}
+        currentPage={currentPage}
+      />
+      
+      <SearchPanel
+        open={showSearch}
+        onClose={() => setShowSearch(false)}
+        onSearch={handleSearch}
+        onNavigateToResult={handleNavigateToSearchResult}
+        results={searchResults}
+        currentResultIndex={currentSearchIndex}
+        onNextResult={handleNextSearchResult}
+        onPrevResult={handlePrevSearchResult}
+        isSearching={isSearching}
+      />
+      
+      <MergeDialog
+        open={showMergeDialog}
+        onClose={() => setShowMergeDialog(false)}
+        onMergeComplete={handleMergeComplete}
+        currentPdfUrl={pdfUrl}
+        currentFileName={fileName}
       />
     </div>
   );
