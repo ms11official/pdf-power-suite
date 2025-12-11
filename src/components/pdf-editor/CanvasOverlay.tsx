@@ -1,14 +1,18 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Canvas as FabricCanvas, Rect, Circle, Line, IText, FabricImage, PencilBrush, Textbox } from "fabric";
+import { Canvas as FabricCanvas, Rect, Circle, Line, IText, FabricImage, PencilBrush, Textbox, Triangle, Polygon } from "fabric";
 
 export interface CanvasOverlayRef {
   addText: () => void;
   addRect: () => void;
   addCircle: () => void;
   addLine: () => void;
+  addArrow: () => void;
+  addTriangle: () => void;
   addImage: (file: File) => void;
   setDrawingMode: (enabled: boolean) => void;
   setHighlightMode: (enabled: boolean) => void;
+  setUnderlineMode: (enabled: boolean) => void;
+  setStrikethroughMode: (enabled: boolean) => void;
   setEraserMode: (enabled: boolean) => void;
   deleteSelected: () => void;
   undo: () => void;
@@ -26,7 +30,11 @@ export interface CanvasOverlayRef {
   addWatermark: (text: string) => void;
   addRedaction: () => void;
   addComment: () => void;
+  addStickyNote: () => void;
   addPageNumber: (pageNum: number) => void;
+  addCheckbox: () => void;
+  addQRCode: (text: string) => void;
+  addMeasurement: (type: string) => void;
   setColor: (color: string) => void;
   copySelected: () => void;
   paste: () => void;
@@ -41,6 +49,7 @@ export interface CanvasOverlayRef {
   setStrokeWidth: (width: number) => void;
   exportAnnotations: () => string;
   importAnnotations: (json: string) => void;
+  setBackground: (color: string) => void;
 }
 
 interface CanvasOverlayProps {
@@ -140,6 +149,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       
       switch (activeTool) {
         case "draw":
+        case "drawing":
           canvas.isDrawingMode = true;
           canvas.freeDrawingBrush!.color = color;
           canvas.freeDrawingBrush!.width = sw;
@@ -149,10 +159,23 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           canvas.freeDrawingBrush!.color = "rgba(255, 255, 0, 0.4)";
           canvas.freeDrawingBrush!.width = 20;
           break;
+        case "underline":
+          canvas.isDrawingMode = true;
+          canvas.freeDrawingBrush!.color = color;
+          canvas.freeDrawingBrush!.width = 2;
+          break;
+        case "strikethrough":
+          canvas.isDrawingMode = true;
+          canvas.freeDrawingBrush!.color = "rgba(255, 0, 0, 0.8)";
+          canvas.freeDrawingBrush!.width = 2;
+          break;
         case "eraser":
           canvas.isDrawingMode = true;
           canvas.freeDrawingBrush!.color = "#ffffff";
           canvas.freeDrawingBrush!.width = 20;
+          break;
+        case "pan":
+          canvas.isDrawingMode = false;
           break;
         default:
           canvas.isDrawingMode = false;
@@ -214,6 +237,42 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
         fabricRef.current.setActiveObject(line);
       },
 
+      addArrow: () => {
+        if (!fabricRef.current) return;
+        // Create arrow using line and triangle
+        const line = new Line([50, 100, 180, 100], {
+          stroke: currentColorRef.current,
+          strokeWidth: currentStrokeWidthRef.current,
+        });
+        const triangle = new Triangle({
+          left: 180,
+          top: 100,
+          width: 15,
+          height: 15,
+          fill: currentColorRef.current,
+          angle: 90,
+          originX: 'center',
+          originY: 'center',
+        });
+        fabricRef.current.add(line);
+        fabricRef.current.add(triangle);
+      },
+
+      addTriangle: () => {
+        if (!fabricRef.current) return;
+        const triangle = new Triangle({
+          left: 100,
+          top: 100,
+          width: 80,
+          height: 80,
+          fill: "transparent",
+          stroke: currentColorRef.current,
+          strokeWidth: currentStrokeWidthRef.current,
+        });
+        fabricRef.current.add(triangle);
+        fabricRef.current.setActiveObject(triangle);
+      },
+
       addImage: (file: File) => {
         if (!fabricRef.current) return;
         const reader = new FileReader();
@@ -249,6 +308,24 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
         if (enabled) {
           fabricRef.current.freeDrawingBrush!.color = "rgba(255, 255, 0, 0.4)";
           fabricRef.current.freeDrawingBrush!.width = 20;
+        }
+      },
+
+      setUnderlineMode: (enabled: boolean) => {
+        if (!fabricRef.current) return;
+        fabricRef.current.isDrawingMode = enabled;
+        if (enabled) {
+          fabricRef.current.freeDrawingBrush!.color = currentColorRef.current;
+          fabricRef.current.freeDrawingBrush!.width = 2;
+        }
+      },
+
+      setStrikethroughMode: (enabled: boolean) => {
+        if (!fabricRef.current) return;
+        fabricRef.current.isDrawingMode = enabled;
+        if (enabled) {
+          fabricRef.current.freeDrawingBrush!.color = "rgba(255, 0, 0, 0.8)";
+          fabricRef.current.freeDrawingBrush!.width = 2;
         }
       },
 
@@ -303,7 +380,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       setBold: () => {
         if (!fabricRef.current) return;
         const activeObject = fabricRef.current.getActiveObject();
-        if (activeObject && activeObject.type === "i-text") {
+        if (activeObject && (activeObject.type === "i-text" || activeObject.type === "textbox")) {
           const textObj = activeObject as IText;
           textObj.set("fontWeight", textObj.fontWeight === "bold" ? "normal" : "bold");
           fabricRef.current.renderAll();
@@ -314,7 +391,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       setItalic: () => {
         if (!fabricRef.current) return;
         const activeObject = fabricRef.current.getActiveObject();
-        if (activeObject && activeObject.type === "i-text") {
+        if (activeObject && (activeObject.type === "i-text" || activeObject.type === "textbox")) {
           const textObj = activeObject as IText;
           textObj.set("fontStyle", textObj.fontStyle === "italic" ? "normal" : "italic");
           fabricRef.current.renderAll();
@@ -325,7 +402,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       setUnderline: () => {
         if (!fabricRef.current) return;
         const activeObject = fabricRef.current.getActiveObject();
-        if (activeObject && activeObject.type === "i-text") {
+        if (activeObject && (activeObject.type === "i-text" || activeObject.type === "textbox")) {
           const textObj = activeObject as IText;
           textObj.set("underline", !textObj.underline);
           fabricRef.current.renderAll();
@@ -336,7 +413,7 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
       setAlign: (align: string) => {
         if (!fabricRef.current) return;
         const activeObject = fabricRef.current.getActiveObject();
-        if (activeObject && activeObject.type === "i-text") {
+        if (activeObject && (activeObject.type === "i-text" || activeObject.type === "textbox")) {
           const textObj = activeObject as IText;
           textObj.set("textAlign", align);
           fabricRef.current.renderAll();
@@ -378,6 +455,8 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           rejected: "#ef4444",
           draft: "#f59e0b",
           confidential: "#dc2626",
+          reviewed: "#3b82f6",
+          final: "#8b5cf6",
         };
         const color = stampColors[type] || "#6366f1";
         
@@ -468,6 +547,36 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
         commentText.enterEditing();
       },
 
+      addStickyNote: () => {
+        if (!fabricRef.current) return;
+        const noteBg = new Rect({
+          left: 100,
+          top: 100,
+          width: 150,
+          height: 150,
+          fill: "#fef08a",
+          stroke: "#eab308",
+          strokeWidth: 1,
+          rx: 2,
+          ry: 2,
+          shadow: { color: 'rgba(0,0,0,0.2)', blur: 5, offsetX: 2, offsetY: 2 } as any,
+        });
+        
+        const noteText = new IText("Note...", {
+          left: 108,
+          top: 108,
+          fontSize: 14,
+          fill: "#713f12",
+          fontFamily: "Arial",
+          width: 134,
+        });
+        
+        fabricRef.current.add(noteBg);
+        fabricRef.current.add(noteText);
+        fabricRef.current.setActiveObject(noteText);
+        noteText.enterEditing();
+      },
+
       addPageNumber: (pageNum: number) => {
         if (!fabricRef.current) return;
         const pageText = new IText(`Page ${pageNum}`, {
@@ -478,6 +587,90 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           fontFamily: "Arial",
         });
         fabricRef.current.add(pageText);
+      },
+
+      addCheckbox: () => {
+        if (!fabricRef.current) return;
+        const checkbox = new Rect({
+          left: 100,
+          top: 100,
+          width: 16,
+          height: 16,
+          fill: "transparent",
+          stroke: currentColorRef.current,
+          strokeWidth: 2,
+          rx: 2,
+          ry: 2,
+        });
+        fabricRef.current.add(checkbox);
+        fabricRef.current.setActiveObject(checkbox);
+      },
+
+      addQRCode: (text: string) => {
+        if (!fabricRef.current) return;
+        // Simple QR placeholder - in real implementation would generate actual QR
+        const qrBg = new Rect({
+          left: 100,
+          top: 100,
+          width: 100,
+          height: 100,
+          fill: "#ffffff",
+          stroke: "#000000",
+          strokeWidth: 2,
+        });
+        
+        const qrText = new IText("QR", {
+          left: 130,
+          top: 140,
+          fontSize: 24,
+          fill: "#000000",
+          fontFamily: "Arial",
+          fontWeight: "bold",
+        });
+        
+        fabricRef.current.add(qrBg);
+        fabricRef.current.add(qrText);
+      },
+
+      addMeasurement: (type: string) => {
+        if (!fabricRef.current) return;
+        const color = "#3b82f6";
+        
+        if (type === "distance") {
+          const line = new Line([100, 100, 250, 100], {
+            stroke: color,
+            strokeWidth: 2,
+          });
+          const measureText = new IText("150 px", {
+            left: 160,
+            top: 75,
+            fontSize: 12,
+            fill: color,
+            fontFamily: "Arial",
+          });
+          fabricRef.current.add(line);
+          fabricRef.current.add(measureText);
+        } else if (type === "area") {
+          const rect = new Rect({
+            left: 100,
+            top: 100,
+            width: 120,
+            height: 80,
+            fill: "rgba(59, 130, 246, 0.1)",
+            stroke: color,
+            strokeWidth: 2,
+            strokeDashArray: [5, 5],
+          });
+          const areaText = new IText("9,600 px²", {
+            left: 130,
+            top: 135,
+            fontSize: 12,
+            fill: color,
+            fontFamily: "Arial",
+          });
+          fabricRef.current.add(rect);
+          fabricRef.current.add(areaText);
+        }
       },
 
       setColor: (color: string) => {
@@ -640,6 +833,13 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           historyIndexRef.current = 0;
           onHistoryChange(false, false);
         });
+      },
+
+      setBackground: (color: string) => {
+        if (!fabricRef.current) return;
+        fabricRef.current.backgroundColor = color;
+        fabricRef.current.renderAll();
+        saveHistory();
       },
     }));
 
