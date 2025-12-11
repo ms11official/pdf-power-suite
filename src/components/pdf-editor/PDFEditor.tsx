@@ -11,6 +11,8 @@ import { CanvasContextMenu } from "./CanvasContextMenu";
 import { BookmarkPanel, BookmarkItem } from "./BookmarkPanel";
 import { SearchPanel, SearchResult } from "./SearchPanel";
 import { MergeDialog } from "./MergeDialog";
+import { CloudStorageDialog } from "./CloudStorageDialog";
+import { SplitDialog } from "./SplitDialog";
 import { PDFDocument } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
 import { toast } from "sonner";
@@ -53,6 +55,13 @@ export function PDFEditor() {
   
   // Merge dialog state
   const [showMergeDialog, setShowMergeDialog] = useState(false);
+  
+  // Cloud storage dialog state
+  const [showCloudStorage, setShowCloudStorage] = useState(false);
+  const [cloudStorageMode, setCloudStorageMode] = useState<"save" | "load">("save");
+  
+  // Split dialog state
+  const [showSplitDialog, setShowSplitDialog] = useState(false);
   
   // Multi-page annotation storage
   const [pageAnnotations, setPageAnnotations] = useState<Record<number, string>>({});
@@ -621,7 +630,7 @@ export function PDFEditor() {
         break;
       case "split":
         if (pdfUrl) {
-          toast.success("PDF ready to split - select pages");
+          setShowSplitDialog(true);
         } else {
           toast.error("Please load a PDF first");
         }
@@ -811,8 +820,12 @@ export function PDFEditor() {
       
       // Share tools
       case "cloud-save":
-        toast.success("Saving to cloud storage...");
-        setTimeout(() => toast.success("Saved to cloud!"), 1500);
+        setCloudStorageMode("save");
+        setShowCloudStorage(true);
+        break;
+      case "cloud-load":
+        setCloudStorageMode("load");
+        setShowCloudStorage(true);
         break;
       case "share-link":
         toast.success("Shareable link created!");
@@ -1041,6 +1054,24 @@ export function PDFEditor() {
         onMergeComplete={handleMergeComplete}
         currentPdfUrl={pdfUrl}
         currentFileName={fileName}
+      />
+      
+      <CloudStorageDialog
+        open={showCloudStorage}
+        onClose={() => setShowCloudStorage(false)}
+        mode={cloudStorageMode}
+        currentFileName={fileName}
+        onFileLoad={(url, name) => {
+          toast.info(`Cloud file "${name}" would be loaded here`);
+        }}
+      />
+      
+      <SplitDialog
+        open={showSplitDialog}
+        onClose={() => setShowSplitDialog(false)}
+        pdfUrl={pdfUrl}
+        fileName={fileName}
+        totalPages={totalPages}
       />
     </div>
   );
