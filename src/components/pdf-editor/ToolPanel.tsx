@@ -41,6 +41,7 @@ import {
   MoveHorizontal,
   Link,
   CloudUpload,
+  Download,
   Share2,
   Users,
   Moon,
@@ -139,7 +140,8 @@ const toolsByCategory: Record<string, ToolItem[]> = {
     { id: "comments-export", label: "Export Comments", description: "Export all comments", icon: FileText },
   ],
   share: [
-    { id: "cloud-save", label: "Save to Cloud", description: "Google Drive, OneDrive", icon: CloudUpload },
+    { id: "cloud-save", label: "Save to Cloud", description: "Google Drive, Dropbox, OneDrive", icon: CloudUpload },
+    { id: "cloud-load", label: "Load from Cloud", description: "Open from cloud storage", icon: Download },
     { id: "share-link", label: "Share Link", description: "Create shareable link", icon: Link },
     { id: "collaborate", label: "Collaborate", description: "Real-time editing", icon: Users },
     { id: "share-pdf", label: "Share PDF", description: "Send via email", icon: Share2 },
