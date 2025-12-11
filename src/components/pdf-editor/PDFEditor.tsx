@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { EditorSidebar } from "./EditorSidebar";
+import { EditorSidebar, SidebarMode } from "./EditorSidebar";
 import { EditorToolbar } from "./EditorToolbar";
 import { PDFCanvas } from "./PDFCanvas";
 import { PageThumbnails } from "./PageThumbnails";
@@ -25,11 +25,12 @@ export function PDFEditor() {
   const [zoom, setZoom] = useState(100);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("expanded");
   const [thumbnailsCollapsed, setThumbnailsCollapsed] = useState(false);
   const [blankPages, setBlankPages] = useState<number[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, hasSelection: false });
+  const [isPanning, setIsPanning] = useState(false);
   
   // Multi-page annotation storage
   const [pageAnnotations, setPageAnnotations] = useState<Record<number, string>>({});
@@ -168,10 +169,6 @@ export function PDFEditor() {
     toast.success("Document saved");
   }, [saveCurrentPageAnnotations]);
 
-  const handlePrint = useCallback(() => {
-    window.print();
-  }, []);
-
   const handleDownload = useCallback(async () => {
     if (!pdfUrl) {
       toast.error("No document to download");
@@ -246,6 +243,39 @@ export function PDFEditor() {
   const handleFitToPage = useCallback(() => {
     setZoom(100);
   }, []);
+
+  const handleZoomToSelection = useCallback(() => {
+    const canvas = canvasOverlayRef.current?.getCanvas();
+    if (!canvas) return;
+    const activeObject = canvas.getActiveObject();
+    if (activeObject) {
+      const objBounds = activeObject.getBoundingRect();
+      const canvasWidth = canvas.getWidth();
+      const canvasHeight = canvas.getHeight();
+      const scaleX = canvasWidth / objBounds.width;
+      const scaleY = canvasHeight / objBounds.height;
+      const newZoom = Math.min(scaleX, scaleY) * (zoom / 100) * 0.8 * 100;
+      setZoom(Math.min(Math.max(newZoom, 50), 400));
+      toast.success("Zoomed to selection");
+    } else {
+      toast.info("Select an object first");
+    }
+  }, [zoom]);
+
+  const handleTogglePan = useCallback(() => {
+    setIsPanning(prev => !prev);
+    if (!isPanning) {
+      toast.info("Pan mode enabled - drag to scroll");
+    }
+  }, [isPanning]);
+
+  const handlePrint = useCallback(() => {
+    if (!pdfUrl) {
+      toast.error("No document to print");
+      return;
+    }
+    window.print();
+  }, [pdfUrl]);
 
 
   const handleUndo = useCallback(() => {
@@ -565,11 +595,11 @@ export function PDFEditor() {
         <EditorSidebar 
           activeItem={activeCategory} 
           onItemClick={setActiveCategory}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          sidebarMode={sidebarMode}
+          onSidebarModeChange={setSidebarMode}
         />
         
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden print:!ml-0">
           <EditorToolbar
             activeTool={activeTool}
             activeColor={activeColor}
@@ -603,6 +633,7 @@ export function PDFEditor() {
               fontSize={fontSize}
               fontFamily={fontFamily}
               strokeWidth={strokeWidth}
+              isPanning={isPanning}
               onFileUpload={handleFileUpload}
               onPdfLoaded={handlePdfLoaded}
               onHistoryChange={handleHistoryChange}
@@ -638,6 +669,9 @@ export function PDFEditor() {
             currentPage={currentPage}
             totalPages={totalPages}
             onShowShortcuts={() => setShowShortcuts(true)}
+            isPanning={isPanning}
+            onTogglePan={handleTogglePan}
+            onZoomToSelection={handleZoomToSelection}
           />
         </div>
       </div>

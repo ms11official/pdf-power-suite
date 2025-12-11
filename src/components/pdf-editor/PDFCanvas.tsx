@@ -17,6 +17,7 @@ interface PDFCanvasProps {
   fontSize: number;
   fontFamily: string;
   strokeWidth: number;
+  isPanning: boolean;
   onFileUpload: (file: File) => void;
   onPdfLoaded: (numPages: number) => void;
   onHistoryChange: (canUndo: boolean, canRedo: boolean) => void;
@@ -33,6 +34,7 @@ export function PDFCanvas({
   fontSize,
   fontFamily,
   strokeWidth,
+  isPanning,
   onFileUpload, 
   onPdfLoaded,
   onHistoryChange,
@@ -45,6 +47,9 @@ export function PDFCanvas({
   const [isRendering, setIsRendering] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const renderingRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [scrollPos, setScrollPos] = useState({ x: 0, y: 0 });
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) onFileUpload(acceptedFiles[0]);
@@ -93,6 +98,32 @@ export function PDFCanvas({
     renderPage();
   }, [pdfDoc, currentPage, zoom]);
 
+  // Pan/scroll handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (isPanning && containerRef.current) {
+      setIsDragging(true);
+      setStartPos({ x: e.clientX, y: e.clientY });
+      setScrollPos({ 
+        x: containerRef.current.scrollLeft, 
+        y: containerRef.current.scrollTop 
+      });
+      e.preventDefault();
+    }
+  }, [isPanning]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isDragging && containerRef.current) {
+      const dx = e.clientX - startPos.x;
+      const dy = e.clientY - startPos.y;
+      containerRef.current.scrollLeft = scrollPos.x - dx;
+      containerRef.current.scrollTop = scrollPos.y - dy;
+    }
+  }, [isDragging, startPos, scrollPos]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
   const handleOpenFile = useCallback(() => {
     open();
   }, [open]);
@@ -128,16 +159,28 @@ export function PDFCanvas({
   }
 
   return (
-    <div className="flex-1 bg-secondary overflow-auto p-4" ref={containerRef} {...getRootProps()}>
+    <div 
+      className={cn(
+        "flex-1 bg-secondary overflow-auto p-4",
+        isPanning && "cursor-grab",
+        isDragging && "cursor-grabbing"
+      )} 
+      ref={containerRef} 
+      {...getRootProps()}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
       <input {...getInputProps()} />
-      <div className="flex justify-center">
-        <div className="relative bg-card shadow-lg rounded-md overflow-hidden">
+      <div className="flex justify-center print-area">
+        <div className="relative bg-card shadow-lg rounded-md overflow-hidden print:shadow-none print:rounded-none">
           <canvas ref={pdfCanvasRef} className="block" />
           <CanvasOverlay
             ref={canvasRef}
             width={canvasSize.width}
             height={canvasSize.height}
-            activeTool={activeTool}
+            activeTool={isPanning ? "pan" : activeTool}
             activeColor={activeColor}
             fontSize={fontSize}
             fontFamily={fontFamily}

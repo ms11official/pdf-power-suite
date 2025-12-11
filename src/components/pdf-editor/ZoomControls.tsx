@@ -7,7 +7,9 @@ import {
   Printer,
   Undo,
   Redo,
-  HelpCircle
+  HelpCircle,
+  Hand,
+  Focus
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -34,6 +36,9 @@ interface ZoomControlsProps {
   currentPage: number;
   totalPages: number;
   onShowShortcuts: () => void;
+  isPanning: boolean;
+  onTogglePan: () => void;
+  onZoomToSelection: () => void;
 }
 
 export function ZoomControls({ 
@@ -52,10 +57,13 @@ export function ZoomControls({
   fileName,
   currentPage,
   totalPages,
-  onShowShortcuts
+  onShowShortcuts,
+  isPanning,
+  onTogglePan,
+  onZoomToSelection
 }: ZoomControlsProps) {
   return (
-    <div className="h-9 bg-toolbar border-t border-border px-2 flex items-center justify-between">
+    <div className="h-9 bg-toolbar border-t border-border px-2 flex items-center justify-between print:hidden">
       <div className="flex items-center gap-0.5">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -145,6 +153,27 @@ export function ZoomControls({
             </button>
           </TooltipTrigger>
           <TooltipContent className="text-xs">Fit to Page</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={onZoomToSelection} className="toolbar-btn">
+              <Focus className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="text-xs">Zoom to Selection</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button 
+              onClick={onTogglePan} 
+              className={cn("toolbar-btn", isPanning && "toolbar-btn-active")}
+            >
+              <Hand className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="text-xs">Pan Mode (Space+Drag)</TooltipContent>
         </Tooltip>
 
         <Separator orientation="vertical" className="h-4 mx-1" />
