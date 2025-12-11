@@ -8,12 +8,15 @@ import {
   Wand2,
   Settings,
   HelpCircle,
-  ChevronLeft,
-  ChevronRight,
   User,
   PanelLeftClose,
   PanelLeft,
-  Columns
+  Columns,
+  Eye,
+  MessageSquare,
+  Ruler,
+  Share2,
+  FilePlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -24,12 +27,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const mainItems = [
-  { id: "edit", label: "Edit & Annotate", icon: Pencil, color: "text-primary" },
+  { id: "view", label: "View & Read", icon: Eye, color: "text-cyan-500" },
+  { id: "edit", label: "Edit", icon: Pencil, color: "text-primary" },
+  { id: "annotate", label: "Annotate", icon: MessageSquare, color: "text-yellow-500" },
   { id: "fill", label: "Fill & Sign", icon: PenTool, color: "text-rose-500" },
-  { id: "organize", label: "Organize Pages", icon: LayoutGrid, color: "text-amber-500" },
-  { id: "protect", label: "Protect & Secure", icon: Shield, color: "text-green-500" },
-  { id: "convert", label: "Convert Files", icon: ArrowLeftRight, color: "text-sky-500" },
-  { id: "advanced", label: "Advanced Tools", icon: Wand2, color: "text-slate-500" },
+  { id: "organize", label: "Organize", icon: LayoutGrid, color: "text-amber-500" },
+  { id: "protect", label: "Protect", icon: Shield, color: "text-green-500" },
+  { id: "convert", label: "Convert", icon: ArrowLeftRight, color: "text-sky-500" },
+  { id: "measure", label: "Measure", icon: Ruler, color: "text-indigo-500" },
+  { id: "advanced", label: "Advanced", icon: Wand2, color: "text-slate-500" },
+  { id: "create", label: "Create PDF", icon: FilePlus, color: "text-teal-500" },
+  { id: "share", label: "Share", icon: Share2, color: "text-lime-500" },
 ];
 
 const bottomItems = [
