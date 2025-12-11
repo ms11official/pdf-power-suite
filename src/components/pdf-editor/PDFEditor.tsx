@@ -13,6 +13,7 @@ import { SearchPanel, SearchResult } from "./SearchPanel";
 import { MergeDialog } from "./MergeDialog";
 import { CloudStorageDialog } from "./CloudStorageDialog";
 import { SplitDialog } from "./SplitDialog";
+import { PasswordProtectionDialog } from "./PasswordProtectionDialog";
 import { PDFDocument } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
 import { toast } from "sonner";
@@ -62,6 +63,9 @@ export function PDFEditor() {
   
   // Split dialog state
   const [showSplitDialog, setShowSplitDialog] = useState(false);
+  
+  // Password protection dialog state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   
   // Multi-page annotation storage
   const [pageAnnotations, setPageAnnotations] = useState<Record<number, string>>({});
@@ -664,7 +668,11 @@ export function PDFEditor() {
       
       // Protect tools
       case "password":
-        toast.success("Password protection enabled");
+        if (pdfUrl) {
+          setShowPasswordDialog(true);
+        } else {
+          toast.error("Please load a PDF first");
+        }
         break;
       case "unlock":
         toast.success("PDF unlocked successfully");
@@ -1072,6 +1080,13 @@ export function PDFEditor() {
         pdfUrl={pdfUrl}
         fileName={fileName}
         totalPages={totalPages}
+      />
+      
+      <PasswordProtectionDialog
+        open={showPasswordDialog}
+        onOpenChange={setShowPasswordDialog}
+        pdfUrl={pdfUrl}
+        fileName={fileName}
       />
     </div>
   );
