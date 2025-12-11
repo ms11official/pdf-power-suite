@@ -174,8 +174,11 @@ export function PDFCanvas({
     >
       <input {...getInputProps()} />
       <div className="flex justify-center print-area">
-        <div className="relative bg-card shadow-lg rounded-md overflow-hidden print:shadow-none print:rounded-none">
-          <canvas ref={pdfCanvasRef} className="block" />
+        <div 
+          className="relative bg-card shadow-lg rounded-md overflow-hidden print:shadow-none print:rounded-none"
+          style={{ width: canvasSize.width, height: canvasSize.height }}
+        >
+          <canvas ref={pdfCanvasRef} className="block absolute inset-0" />
           <CanvasOverlay
             ref={canvasRef}
             width={canvasSize.width}
