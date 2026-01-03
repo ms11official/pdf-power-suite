@@ -1,1 +1,7 @@
 project_id = "engwgxmhvtwwndepvicl"
+
+[functions.encrypt-pdf]
+verify_jwt = false
+
+[functions.decrypt-pdf]
+verify_jwt = false

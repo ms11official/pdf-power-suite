@@ -14,6 +14,8 @@ import { MergeDialog } from "./MergeDialog";
 import { CloudStorageDialog } from "./CloudStorageDialog";
 import { SplitDialog } from "./SplitDialog";
 import { PasswordProtectionDialog } from "./PasswordProtectionDialog";
+import { PDFCompareDialog } from "./PDFCompareDialog";
+import { PDFUnlockDialog } from "./PDFUnlockDialog";
 import { PDFDocument } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
 import { toast } from "sonner";
@@ -66,6 +68,12 @@ export function PDFEditor() {
   
   // Password protection dialog state
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  
+  // PDF Compare dialog state
+  const [showCompareDialog, setShowCompareDialog] = useState(false);
+  
+  // PDF Unlock dialog state
+  const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   
   // Multi-page annotation storage
   const [pageAnnotations, setPageAnnotations] = useState<Record<number, string>>({});
@@ -675,7 +683,7 @@ export function PDFEditor() {
         }
         break;
       case "unlock":
-        toast.success("PDF unlocked successfully");
+        setShowUnlockDialog(true);
         break;
       case "redact":
         canvasOverlayRef.current?.addRedaction();
@@ -798,7 +806,7 @@ export function PDFEditor() {
         setTimeout(() => toast.success("No spelling errors found"), 1500);
         break;
       case "compare":
-        toast.info("Upload second PDF to compare");
+        setShowCompareDialog(true);
         break;
       case "ocr-correct":
         toast.success("OCR correction mode enabled");
@@ -1087,6 +1095,26 @@ export function PDFEditor() {
         onOpenChange={setShowPasswordDialog}
         pdfUrl={pdfUrl}
         fileName={fileName}
+      />
+      
+      <PDFCompareDialog
+        open={showCompareDialog}
+        onOpenChange={setShowCompareDialog}
+        currentPdfUrl={pdfUrl}
+        currentFileName={fileName}
+      />
+      
+      <PDFUnlockDialog
+        open={showUnlockDialog}
+        onOpenChange={setShowUnlockDialog}
+        onUnlock={(url, name) => {
+          setPdfUrl(url);
+          setFileName(name);
+          setCurrentPage(1);
+          setPageAnnotations({});
+          canvasOverlayRef.current?.clear();
+          toast.success(`Loaded unlocked PDF: ${name}`);
+        }}
       />
     </div>
   );
