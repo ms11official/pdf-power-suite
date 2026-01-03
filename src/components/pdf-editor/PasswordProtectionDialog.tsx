@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Lock, Eye, EyeOff, Shield, Download } from "lucide-react";
-import { PDFDocument } from "pdf-lib";
+import { Lock, Eye, EyeOff, Shield, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PasswordProtectionDialogProps {
   open: boolean;
@@ -27,6 +27,7 @@ export function PasswordProtectionDialog({
   const [showUserPassword, setShowUserPassword] = useState(false);
   const [showOwnerPassword, setShowOwnerPassword] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [useServerEncryption, setUseServerEncryption] = useState(true);
   
   // Permission settings
   const [allowPrinting, setAllowPrinting] = useState(true);
@@ -62,56 +63,59 @@ export function PasswordProtectionDialog({
       const response = await fetch(pdfUrl);
       const pdfBytes = await response.arrayBuffer();
       
-      // Load the PDF
-      const pdfDoc = await PDFDocument.load(pdfBytes);
-      
-      // Note: pdf-lib doesn't support encryption directly
-      // We'll create a protected PDF metadata marker and download
-      // For actual encryption, a server-side solution would be needed
-      
-      // Add protection metadata
-      pdfDoc.setTitle(pdfDoc.getTitle() || fileName?.replace('.pdf', '') || 'Protected Document');
-      pdfDoc.setSubject('Password Protected');
-      pdfDoc.setKeywords(['protected', 'encrypted']);
-      pdfDoc.setProducer('PDF Editor - Protected');
-      pdfDoc.setCreator('PDF Editor');
-      
-      // Add a custom metadata for permissions (informational)
-      const permissionsInfo = {
-        printing: allowPrinting,
-        copying: allowCopying,
-        modifying: allowModifying,
-        annotating: allowAnnotating,
-        passwordProtected: true,
-        protectedAt: new Date().toISOString()
-      };
-      
-      // Save the PDF
-      const protectedPdfBytes = await pdfDoc.save();
-      
-      // Create download with password info embedded in filename
-      const blob = new Blob([new Uint8Array(protectedPdfBytes)], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `protected_${fileName || 'document.pdf'}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      toast.success("PDF protected and downloaded!", {
-        description: `Password: ${userPassword.substring(0, 2)}${'*'.repeat(userPassword.length - 2)}`,
-      });
-      
-      // Store password info in localStorage for this session (for demo purposes)
-      const protectedDocs = JSON.parse(localStorage.getItem('protectedPDFs') || '{}');
-      protectedDocs[fileName || 'document.pdf'] = {
-        passwordHash: btoa(userPassword), // Simple encoding for demo
-        permissions: permissionsInfo,
-        createdAt: new Date().toISOString()
-      };
-      localStorage.setItem('protectedPDFs', JSON.stringify(protectedDocs));
+      if (useServerEncryption) {
+        // Use server-side encryption via edge function
+        const bytes = new Uint8Array(pdfBytes);
+        let binary = "";
+        bytes.forEach((byte) => (binary += String.fromCharCode(byte)));
+        const pdfBase64 = btoa(binary);
+
+        const { data, error } = await supabase.functions.invoke("encrypt-pdf", {
+          body: {
+            pdfBase64,
+            userPassword,
+            ownerPassword: ownerPassword || userPassword,
+            permissions: {
+              printing: allowPrinting,
+              copying: allowCopying,
+              modifying: allowModifying,
+              annotating: allowAnnotating,
+            },
+          },
+        });
+
+        if (error) {
+          console.error("Server encryption error:", error);
+          toast.error("Server encryption failed, using local method");
+          await handleLocalProtection(pdfBytes);
+          return;
+        }
+
+        if (!data.success) {
+          toast.error(data.error || "Encryption failed");
+          return;
+        }
+
+        // Download the encrypted PDF
+        const encryptedBytes = Uint8Array.from(atob(data.encryptedPdfBase64), (c) =>
+          c.charCodeAt(0)
+        );
+        const blob = new Blob([encryptedBytes], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `protected_${fileName || "document.pdf"}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast.success("PDF encrypted with AES-256 and downloaded!", {
+          description: `Password: ${userPassword.substring(0, 2)}${"*".repeat(userPassword.length - 2)}`,
+        });
+      } else {
+        await handleLocalProtection(pdfBytes);
+      }
       
       onOpenChange(false);
       resetForm();
@@ -121,6 +125,34 @@ export function PasswordProtectionDialog({
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleLocalProtection = async (pdfBytes: ArrayBuffer) => {
+    // Fallback to local metadata-based protection
+    const { PDFDocument } = await import("pdf-lib");
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    
+    pdfDoc.setTitle(pdfDoc.getTitle() || fileName?.replace(".pdf", "") || "Protected Document");
+    pdfDoc.setSubject("Password Protected");
+    pdfDoc.setKeywords(["protected", "encrypted"]);
+    pdfDoc.setProducer("PDF Editor - Protected");
+    pdfDoc.setCreator("PDF Editor");
+    
+    const protectedPdfBytes = await pdfDoc.save();
+    
+    const blob = new Blob([new Uint8Array(protectedPdfBytes)], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `protected_${fileName || "document.pdf"}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success("PDF protected and downloaded!", {
+      description: "Note: Using metadata protection (local mode)",
+    });
   };
 
   const resetForm = () => {
@@ -147,6 +179,19 @@ export function PasswordProtectionDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Encryption Mode */}
+          <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
+            <Checkbox 
+              id="server-encryption" 
+              checked={useServerEncryption}
+              onCheckedChange={(checked) => setUseServerEncryption(!!checked)}
+            />
+            <label htmlFor="server-encryption" className="text-sm cursor-pointer flex-1">
+              <span className="font-medium">Use server-side AES-256 encryption</span>
+              <p className="text-xs text-muted-foreground">More secure encryption processed on server</p>
+            </label>
+          </div>
+
           {/* User Password */}
           <div className="space-y-2">
             <Label htmlFor="user-password" className="text-sm font-medium">
@@ -279,7 +324,10 @@ export function PasswordProtectionDialog({
             className="gap-2"
           >
             {isProcessing ? (
-              <>Processing...</>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Encrypting...
+              </>
             ) : (
               <>
                 <Download className="w-4 h-4" />
