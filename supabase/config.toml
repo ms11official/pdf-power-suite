@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.decrypt-pdf]
 verify_jwt = false
+
+[functions.ocr-pdf]
+verify_jwt = false

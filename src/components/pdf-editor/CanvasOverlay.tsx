@@ -1,5 +1,7 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Canvas as FabricCanvas, Rect, Circle, Line, IText, FabricImage, PencilBrush, Textbox, Triangle, Polygon } from "fabric";
+import { WatermarkConfig } from "./WatermarkDialog";
+import { RedactionConfig } from "./RedactionDialog";
 
 export interface CanvasOverlayRef {
   addText: () => void;
@@ -28,7 +30,9 @@ export interface CanvasOverlayRef {
   addSignature: () => void;
   addStamp: (type: string) => void;
   addWatermark: (text: string) => void;
+  addCustomWatermark: (config: WatermarkConfig) => void;
   addRedaction: () => void;
+  addRedactionArea: (config: RedactionConfig) => void;
   addComment: () => void;
   addStickyNote: () => void;
   addPageNumber: (pageNum: number) => void;
@@ -514,6 +518,84 @@ export const CanvasOverlay = forwardRef<CanvasOverlayRef, CanvasOverlayProps>(
           stroke: "#000000",
           strokeWidth: 1,
         });
+        fabricRef.current.add(redactRect);
+        fabricRef.current.setActiveObject(redactRect);
+      },
+
+      addCustomWatermark: (config: WatermarkConfig) => {
+        if (!fabricRef.current) return;
+        
+        let left = width / 2 - 100;
+        let top = height / 2 - 20;
+        
+        // Calculate position based on config
+        switch (config.position) {
+          case 'top-left':
+            left = 50;
+            top = 50;
+            break;
+          case 'top-right':
+            left = width - 200;
+            top = 50;
+            break;
+          case 'bottom-left':
+            left = 50;
+            top = height - 80;
+            break;
+          case 'bottom-right':
+            left = width - 200;
+            top = height - 80;
+            break;
+          case 'center':
+          case 'diagonal':
+          default:
+            left = width / 2 - 100;
+            top = height / 2 - 20;
+            break;
+        }
+        
+        const watermark = new Textbox(config.text || "WATERMARK", {
+          left,
+          top,
+          width: 300,
+          fontSize: config.fontSize,
+          fill: config.color,
+          opacity: config.opacity / 100,
+          fontFamily: "Arial",
+          fontWeight: "bold",
+          textAlign: "center",
+          angle: config.rotation,
+          selectable: true,
+        });
+        fabricRef.current.add(watermark);
+        fabricRef.current.setActiveObject(watermark);
+      },
+
+      addRedactionArea: (config: RedactionConfig) => {
+        if (!fabricRef.current) return;
+        
+        let fill = config.color;
+        let strokeDashArray: number[] | undefined;
+        
+        if (config.style === 'pattern') {
+          // For pattern, we'll use a darker shade with dashed border
+          fill = config.color;
+        } else if (config.style === 'blur') {
+          // Blur effect simulated with semi-transparent gray
+          fill = 'rgba(128, 128, 128, 0.8)';
+        }
+        
+        const redactRect = new Rect({
+          left: 100,
+          top: 100,
+          width: 200,
+          height: 30,
+          fill,
+          stroke: config.style === 'pattern' ? '#ffffff' : config.color,
+          strokeWidth: config.style === 'pattern' ? 2 : 1,
+          strokeDashArray: config.style === 'pattern' ? [4, 4] : undefined,
+        });
+        
         fabricRef.current.add(redactRect);
         fabricRef.current.setActiveObject(redactRect);
       },
