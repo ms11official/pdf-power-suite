@@ -16,6 +16,9 @@ import { SplitDialog } from "./SplitDialog";
 import { PasswordProtectionDialog } from "./PasswordProtectionDialog";
 import { PDFCompareDialog } from "./PDFCompareDialog";
 import { PDFUnlockDialog } from "./PDFUnlockDialog";
+import { OCRDialog } from "./OCRDialog";
+import { WatermarkDialog, WatermarkConfig } from "./WatermarkDialog";
+import { RedactionDialog, RedactionConfig } from "./RedactionDialog";
 import { PDFDocument } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
 import { toast } from "sonner";
@@ -74,6 +77,15 @@ export function PDFEditor() {
   
   // PDF Unlock dialog state
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
+  
+  // OCR dialog state
+  const [showOCRDialog, setShowOCRDialog] = useState(false);
+  
+  // Watermark dialog state
+  const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
+  
+  // Redaction dialog state
+  const [showRedactionDialog, setShowRedactionDialog] = useState(false);
   
   // Multi-page annotation storage
   const [pageAnnotations, setPageAnnotations] = useState<Record<number, string>>({});
@@ -686,8 +698,11 @@ export function PDFEditor() {
         setShowUnlockDialog(true);
         break;
       case "redact":
-        canvasOverlayRef.current?.addRedaction();
-        toast.success("Redaction block added");
+        if (pdfUrl) {
+          setShowRedactionDialog(true);
+        } else {
+          toast.error("Please load a PDF first");
+        }
         break;
       case "e-sign":
         canvasOverlayRef.current?.addSignature();
@@ -745,8 +760,7 @@ export function PDFEditor() {
         break;
       case "ocr":
         if (pdfUrl) {
-          toast.success("Running OCR (200+ languages)...");
-          setTimeout(() => toast.success("Text extracted!"), 2000);
+          setShowOCRDialog(true);
         } else {
           toast.error("Load a PDF first");
         }
@@ -790,8 +804,11 @@ export function PDFEditor() {
         }
         break;
       case "watermark":
-        canvasOverlayRef.current?.addWatermark("CONFIDENTIAL");
-        toast.success("Watermark added");
+        if (pdfUrl) {
+          setShowWatermarkDialog(true);
+        } else {
+          toast.error("Please load a PDF first");
+        }
         break;
       case "page-numbers":
         canvasOverlayRef.current?.addPageNumber(currentPage);
@@ -1114,6 +1131,31 @@ export function PDFEditor() {
           setPageAnnotations({});
           canvasOverlayRef.current?.clear();
           toast.success(`Loaded unlocked PDF: ${name}`);
+        }}
+      />
+      
+      <OCRDialog
+        open={showOCRDialog}
+        onOpenChange={setShowOCRDialog}
+        pdfUrl={pdfUrl}
+        currentPage={currentPage}
+      />
+      
+      <WatermarkDialog
+        open={showWatermarkDialog}
+        onOpenChange={setShowWatermarkDialog}
+        onApply={(config: WatermarkConfig) => {
+          canvasOverlayRef.current?.addCustomWatermark(config);
+          toast.success("Watermark added");
+        }}
+      />
+      
+      <RedactionDialog
+        open={showRedactionDialog}
+        onOpenChange={setShowRedactionDialog}
+        onApply={(config: RedactionConfig) => {
+          canvasOverlayRef.current?.addRedactionArea(config);
+          toast.success("Redaction area added - draw over sensitive content");
         }}
       />
     </div>
